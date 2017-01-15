@@ -1,2 +1,2 @@
 # Nameplates_Threat
-Colors the nameplate healthbar according to threat.
+Colors the default blizzard nameplates according to threat.
