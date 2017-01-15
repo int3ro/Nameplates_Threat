@@ -9,7 +9,7 @@ end
 hooksecurefunc("CompactUnitFrame_OnUpdate", function(frame)
 	if C_NamePlate.GetNamePlateForUnit(frame.unit) ~= C_NamePlate.GetNamePlateForUnit("player") and not UnitIsPlayer(frame.unit) and not CompactUnitFrame_IsTapDenied(frame) then
 		local threat = UnitThreatSituation("player", frame.unit) or 0
-		if UnitGroupRolesAssigned("player") == "TANK" then
+		if GetSpecializationRole(GetSpecialization()) == "TANK" then
 			if threat == 3 then
 				-- Securely tanking	
 				r, g, b = 0, 0.5, 0
@@ -31,13 +31,13 @@ hooksecurefunc("CompactUnitFrame_OnUpdate", function(frame)
 		else
 			if threat >= 2 then
 				-- tanking
-				r, g, b = 1, 0, 0	
-			elseif threat == 1 then
-				-- Not tanking, but higher threat than tank
 				r, g, b = 1, 0.5, 0	
+			elseif threat == 1 then
+				-- Not tanking, but higher threat than tank				
+				r, g, b = 1, 1, 0.4
 			else
 				-- Not tanking
-				r, g, b = 1, 1, 0.4
+				r, g, b = 1, 0, 0	
 			end
 		end
 		frame.healthBar:SetStatusBarColor(r, g, b, 1)
