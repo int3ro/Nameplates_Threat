@@ -8,7 +8,7 @@ local isOfftank = function(target)
 end
 hooksecurefunc("CompactUnitFrame_OnUpdate", function(frame)
 	if C_NamePlate.GetNamePlateForUnit(frame.unit) ~= C_NamePlate.GetNamePlateForUnit("player") 
-		--and UnitIsEnemy("player", frame.unit) 
+		and UnitIsEnemy("player", frame.unit) 
 		and not UnitIsPlayer(frame.unit) 
 		and not CompactUnitFrame_IsTapDenied(frame) then
 		--[[
