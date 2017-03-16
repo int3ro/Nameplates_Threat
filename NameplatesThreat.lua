@@ -5,26 +5,25 @@ local function updatePlayerRole()
     playerRole = GetSpecializationRole(GetSpecialization())
 end
 
-local function updateHealthColor(frame)
+local function updateHealthColor(frame, ...)
     if frame.threat then
+        local forceUpdate = ...
         local previousColor = frame.threat.previousColor
-        if not previousColor
+        if forceUpdate
                 or previousColor.r ~= frame.healthBar.r
                 or previousColor.g ~= frame.healthBar.g
                 or previousColor.b ~= frame.healthBar.b then
-            frame.healthBar:SetStatusBarColor(
-                frame.threat.color.r,
+            frame.healthBar:SetStatusBarColor(frame.threat.color.r,
                 frame.threat.color.g,
-                frame.threat.color.b
-            )
-            frame.threat.previousColor = {
-                ["r"] = frame.healthBar.r,
-                ["g"] = frame.healthBar.g,
-                ["b"] = frame.healthBar.b,
-            };
+                frame.threat.color.b)
+
+            frame.threat.previousColor.r = frame.healthBar.r
+            frame.threat.previousColor.g = frame.healthBar.g
+            frame.threat.previousColor.b = frame.healthBar.b
         end
     end
 end
+
 -- This function is called constantly during combat. The color is only going to be reset after it was actually changed.
 hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
 
@@ -38,8 +37,8 @@ local function collectOffTanks()
         unitPrefix = "party"
     end
 
-    for i=1, GetNumGroupMembers() do
-        unit = unitPrefix..i
+    for i = 1, GetNumGroupMembers() do
+        unit = unitPrefix .. i
         if UnitGroupRolesAssigned(unit) == "TANK" and not UnitIsUnit(unit, "player") then
             table.insert(collectedTanks, unit)
         end
@@ -62,7 +61,12 @@ end
 
 local function updateThreatColor(frame)
     local unit = frame.unit
-    if UnitIsEnemy("player", unit) and not UnitIsPlayer(unit) and not CompactUnitFrame_IsTapDenied(frame) then
+    local reaction = UnitReaction("player", unit)
+    if reaction
+            and reaction < 5
+            and (reaction < 4 or CompactUnitFrame_IsOnThreatListWithPlayer(frame.displayedUnit))
+            and not UnitIsPlayer(unit)
+            and not CompactUnitFrame_IsTapDenied(frame) then
         --[[
             threat:
             -1 = not on threat table.
@@ -78,7 +82,7 @@ local function updateThreatColor(frame)
         end
 
         -- only recalculate color when situation was actually changed
-        if frame.threat == nil or frame.threat.lastSituation ~= threat then
+        if not frame.threat or frame.threat.lastSituation ~= threat then
             local r, g, b
             if playerRole == "TANK" then
                 if threat == 3 then
@@ -103,16 +107,20 @@ local function updateThreatColor(frame)
                     r, g, b = 1.0, 0.0, 0.0
                 end
             end
-            frame.threat = {
-                ["lastSituation"] = threat,
-                ["previousColor"] = nil,
-                ["color"] = {
-                    ["r"] = r,
-                    ["g"] = g,
-                    ["b"] = b,
-                }
-            };
-            updateHealthColor(frame)
+
+            if not frame.threat then
+                frame.threat = {
+                    ["color"] = {},
+                    ["previousColor"] = {},
+                };
+            end
+
+            frame.threat.lastSituation = threat
+            frame.threat.color.r = r
+            frame.threat.color.g = g
+            frame.threat.color.b = b
+
+            updateHealthColor(frame, true)
         end
     else
         frame.threat = nil
