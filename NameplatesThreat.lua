@@ -5,6 +5,13 @@ local function updatePlayerRole()
     playerRole = GetSpecializationRole(GetSpecialization())
 end
 
+local function resetFrame(frame)
+    if frame.threat then
+        frame.threat = nil
+        frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b)
+    end
+end
+
 local function updateHealthColor(frame, ...)
     if frame.threat then
         local forceUpdate = ...
@@ -13,9 +20,7 @@ local function updateHealthColor(frame, ...)
                 or previousColor.r ~= frame.healthBar.r
                 or previousColor.g ~= frame.healthBar.g
                 or previousColor.b ~= frame.healthBar.b then
-            frame.healthBar:SetStatusBarColor(frame.threat.color.r,
-                frame.threat.color.g,
-                frame.threat.color.b)
+            frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b)
 
             frame.threat.previousColor.r = frame.healthBar.r
             frame.threat.previousColor.g = frame.healthBar.g
@@ -29,9 +34,10 @@ hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
 
 local function collectOffTanks()
     local collectedTanks = {}
-    local unitPrefix, unit, i
+    local unitPrefix, unit, i, unitRole
+    local isInRaid = IsInRaid()
 
-    if IsInRaid() then
+    if isInRaid then
         unitPrefix = "raid"
     else
         unitPrefix = "party"
@@ -39,8 +45,16 @@ local function collectOffTanks()
 
     for i = 1, GetNumGroupMembers() do
         unit = unitPrefix .. i
-        if UnitGroupRolesAssigned(unit) == "TANK" and not UnitIsUnit(unit, "player") then
-            table.insert(collectedTanks, unit)
+        if not UnitIsUnit(unit, "player") then
+            unitRole = UnitGroupRolesAssigned(unit)
+            if unitRole == "TANK" then
+                table.insert(collectedTanks, unit)
+            elseif isInRaid and unitRole == "NONE" then
+                local _, _, _, _, _, _, _, _, _, raidRole = GetRaidRosterInfo(i)
+                if raidRole == "MAINTANK" then
+                    table.insert(collectedTanks, unit)
+                end
+            end
         end
     end
 
@@ -60,7 +74,9 @@ local function isOfftankTanking(mobUnit)
 end
 
 local function updateThreatColor(frame)
+
     local unit = frame.unit
+    -- http://wowwiki.wikia.com/wiki/API_UnitReaction
     local reaction = UnitReaction("player", unit)
     if reaction
             and reaction < 5
@@ -123,7 +139,7 @@ local function updateThreatColor(frame)
             updateHealthColor(frame, true)
         end
     else
-        frame.threat = nil
+        resetFrame(frame)
     end
 end
 
@@ -132,6 +148,7 @@ myFrame:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE");
 myFrame:RegisterEvent("NAME_PLATE_UNIT_ADDED");
 myFrame:RegisterEvent("NAME_PLATE_UNIT_REMOVED");
 myFrame:RegisterEvent("PLAYER_ROLES_ASSIGNED");
+myFrame:RegisterEvent("RAID_ROSTER_UPDATE");
 myFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
 myFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "UNIT_THREAT_SITUATION_UPDATE" then
@@ -158,8 +175,9 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
         callback()
         C_Timer.NewTimer(0.3, callback)
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
-        C_NamePlate.GetNamePlateForUnit(arg1).UnitFrame.threat = nil
-    elseif event == "PLAYER_ROLES_ASSIGNED" then
+        local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
+        resetFrame(nameplate.UnitFrame)
+    elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" then
         offTanks = collectOffTanks()
     elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
         updatePlayerRole()
