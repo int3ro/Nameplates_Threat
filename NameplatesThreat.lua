@@ -6,45 +6,55 @@ local function updatePlayerRole()
 end
 
 local function resetFrame(frame)
-    frame.lastThreatSituation = nil
-    frame.healthBar.threatColor = nil
-    frame.healthBar.previousColor = nil
+    if frame.threat then
+        frame.threat = nil
+        frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b)
+    end
 end
 
-local function updateHealthColor(frame)
-    local healthBar = frame.healthBar
-    if healthBar.threatColor then
-        local previousColor = healthBar.previousColor
-        if not previousColor
-                or previousColor.r ~= healthBar.r
-                or previousColor.g ~= healthBar.g
-                or previousColor.b ~= previousColor.b then
-            frame.healthBar:SetStatusBarColor(healthBar.threatColor.r, healthBar.threatColor.g, healthBar.threatColor.b)
-            healthBar.previousColor = {
-                ["r"] = healthBar.r,
-                ["g"] = healthBar.g,
-                ["b"] = healthBar.b,
-            };
+local function updateHealthColor(frame, ...)
+    if frame.threat then
+        local forceUpdate = ...
+        local previousColor = frame.threat.previousColor
+        if forceUpdate
+                or previousColor.r ~= frame.healthBar.r
+                or previousColor.g ~= frame.healthBar.g
+                or previousColor.b ~= frame.healthBar.b then
+            frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b)
+
+            frame.threat.previousColor.r = frame.healthBar.r
+            frame.threat.previousColor.g = frame.healthBar.g
+            frame.threat.previousColor.b = frame.healthBar.b
         end
     end
 end
+
 -- This function is called constantly during combat. The color is only going to be reset after it was actually changed.
 hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
 
 local function collectOffTanks()
     local collectedTanks = {}
-    local unitPrefix
+    local unitPrefix, unit, i, unitRole
+    local isInRaid = IsInRaid()
 
-    if IsInRaid() then
+    if isInRaid then
         unitPrefix = "raid"
     else
         unitPrefix = "party"
     end
 
-    for i=1, GetNumGroupMembers() do
-        local unit = unitPrefix..i
-        if UnitGroupRolesAssigned(unit) == "TANK" and not UnitIsUnit(unit, "player") then
-            table.insert(collectedTanks, unit)
+    for i = 1, GetNumGroupMembers() do
+        unit = unitPrefix .. i
+        if not UnitIsUnit(unit, "player") then
+            unitRole = UnitGroupRolesAssigned(unit)
+            if unitRole == "TANK" then
+                table.insert(collectedTanks, unit)
+            elseif isInRaid and unitRole == "NONE" then
+                local _, _, _, _, _, _, _, _, _, raidRole = GetRaidRosterInfo(i)
+                if raidRole == "MAINTANK" then
+                    table.insert(collectedTanks, unit)
+                end
+            end
         end
     end
 
@@ -52,8 +62,9 @@ local function collectOffTanks()
 end
 
 local function isOfftankTanking(mobUnit)
-    for i, unit in ipairs(offTanks) do
-        local situation = UnitThreatSituation(unit, mobUnit) or -1
+    local unit, situation
+    for _, unit in ipairs(offTanks) do
+        situation = UnitThreatSituation(unit, mobUnit) or -1
         if situation > 1 then
             return true
         end
@@ -63,8 +74,15 @@ local function isOfftankTanking(mobUnit)
 end
 
 local function updateThreatColor(frame)
+
     local unit = frame.unit
-    if UnitIsEnemy("player", unit) and not CompactUnitFrame_IsTapDenied(frame) then
+    -- http://wowwiki.wikia.com/wiki/API_UnitReaction
+    local reaction = UnitReaction("player", unit)
+    if reaction
+            and reaction < 5
+            and (reaction < 4 or CompactUnitFrame_IsOnThreatListWithPlayer(frame.displayedUnit))
+            and not UnitIsPlayer(unit)
+            and not CompactUnitFrame_IsTapDenied(frame) then
         --[[
             threat:
             -1 = not on threat table.
@@ -80,8 +98,7 @@ local function updateThreatColor(frame)
         end
 
         -- only recalculate color when situation was actually changed
-        if frame.lastThreatSituation == nil or frame.lastThreatSituation ~= threat then
-
+        if not frame.threat or frame.threat.lastSituation ~= threat then
             local r, g, b
             if playerRole == "TANK" then
                 if threat == 3 then
@@ -106,58 +123,61 @@ local function updateThreatColor(frame)
                     r, g, b = 1.0, 0.0, 0.0
                 end
             end
-            frame.lastThreatSituation = threat
-            frame.healthBar.previousColor = nil
-            frame.healthBar.threatColor =
-            {
-                ["r"] = r,
-                ["g"] = g,
-                ["b"] = b,
-            };
-            updateHealthColor(frame)
+
+            if not frame.threat then
+                frame.threat = {
+                    ["color"] = {},
+                    ["previousColor"] = {},
+                };
+            end
+
+            frame.threat.lastSituation = threat
+            frame.threat.color.r = r
+            frame.threat.color.g = g
+            frame.threat.color.b = b
+
+            updateHealthColor(frame, true)
         end
     else
         resetFrame(frame)
     end
 end
 
-local function updateAllNameplates()
-    for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
-        updateThreatColor(nameplate.UnitFrame)
-    end
-end
-
-local polishTimer
 local myFrame = CreateFrame("frame")
 myFrame:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE");
 myFrame:RegisterEvent("NAME_PLATE_UNIT_ADDED");
 myFrame:RegisterEvent("NAME_PLATE_UNIT_REMOVED");
 myFrame:RegisterEvent("PLAYER_ROLES_ASSIGNED");
+myFrame:RegisterEvent("RAID_ROSTER_UPDATE");
 myFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
 myFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "UNIT_THREAT_SITUATION_UPDATE" then
         if not playerRole then
             updatePlayerRole()
         end
-        updateAllNameplates()
 
-        -- Sometimes single nameplates got the wrong Threatsituation and color.
-        -- It keeps that color until this event is called again, which can take a while.
-        -- The polishTimer starts after a second without situation update.
-        if polishTimer then
-            polishTimer:Cancel()
+        for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
+            updateThreatColor(nameplate.UnitFrame)
         end
-        polishTimer = C_Timer.NewTimer(1, function()
-            updateAllNameplates()
-            polishTimer = nil
-        end)
     elseif event == "NAME_PLATE_UNIT_ADDED" then
-        local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
-        updateThreatColor(nameplate.UnitFrame)
+        if not playerRole then
+            updatePlayerRole()
+        end
+
+        local unitId = arg1
+        local callback = function()
+            local plate = C_NamePlate.GetNamePlateForUnit(unitId)
+            if plate then
+                updateThreatColor(plate.UnitFrame)
+            end
+        end
+
+        callback()
+        C_Timer.NewTimer(0.3, callback)
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
         local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
         resetFrame(nameplate.UnitFrame)
-    elseif event == "PLAYER_ROLES_ASSIGNED" then
+    elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" then
         offTanks = collectOffTanks()
     elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
         updatePlayerRole()
