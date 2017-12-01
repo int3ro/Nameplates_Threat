@@ -116,34 +116,34 @@ local function updateThreatColor(frame)
 
         -- only recalculate color when situation was actually changed
         if not frame.threat or frame.threat.lastSituation ~= threat then
-            local r, g, b = 0.2, 0.5, 0.9	-- blue for unknown threat
+            local r, g, b = 0.2, 0.5, 0.9       -- blue for unknown threat
             if playerRole == "TANK" then
-                if threat >= 4 then		-- others tanking offtank
-                    r = r - percent * 0.2	-- blue		no problem
+                if threat >= 4 then             -- others tanking offtank
+                    r = r - percent * 0.2       -- blue         no problem
                     b = b - percent * 0.9
-                elseif threat >= 3 then		-- player tanking by threat
-                    r, g, b = 0.0, 0.5, 0.0	-- green	perfection
-                elseif threat >= 2 then		-- player tanking by force
-                    r, g, b = 1.0, 1.0, 0.4	-- yellow	attack soon
-                elseif threat >= 1 then		-- others tanking by force
-                    r, g, b = 1.0, 0.5, 0.0	-- orange	taunt now
+                elseif threat >= 3 then         -- player tanking by threat
+                    r, g, b = 0.0, 0.5, 0.0     -- green        perfection
+                elseif threat >= 2 then         -- player tanking by force
+                    r, g, b = 1.0, 1.0, 0.4     -- yellow       attack soon
+                elseif threat >= 1 then         -- others tanking by force
+                    r, g, b = 1.0, 0.5, 0.0     -- orange       taunt now
                     g = g + percent * 0.5
                     b = b + percent * 0.4
-                elseif threat >= 0 then		-- others tanking by threat
-                    r, g, b = 1.0, 0.0, 0.0	-- red		attack now
+                elseif threat >= 0 then         -- others tanking by threat
+                    r, g, b = 1.0, 0.0, 0.0     -- red          attack now
                     g = g + percent * 0.5
                 end
             else
-                if threat >= 3 then		-- player tanking by threat
-                    r, g, b = 1.0, 0.0, 0.0	-- red		find tank
-                elseif threat >= 2 then		-- player tanking by force
-                    r, g, b = 1.0, 0.5, 0.0	-- orange	find taunt
-                elseif threat >= 1 then		-- others tanking by force
-                    r, g, b = 1.0, 1.0, 0.4	-- yellow	disengage
+                if threat >= 3 then             -- player tanking by threat
+                    r, g, b = 1.0, 0.0, 0.0     -- red          find tank
+                elseif threat >= 2 then         -- player tanking by force
+                    r, g, b = 1.0, 0.5, 0.0     -- orange       find taunt
+                elseif threat >= 1 then         -- others tanking by force
+                    r, g, b = 1.0, 1.0, 0.4     -- yellow       disengage
                     g = g - percent * 0.5
                     b = b - percent * 0.4
-                elseif threat >= 0 then		-- others tanking by threat
-                    r, g, b = 0.0, 0.5, 0.0	-- green	no problem
+                elseif threat >= 0 then         -- others tanking by threat
+                    r, g, b = 0.0, 0.5, 0.0     -- green        no problem
                     r = r + percent
                     g = g + percent * 0.5
                     b = b + percent * 0.4
