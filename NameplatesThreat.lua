@@ -1,4 +1,5 @@
 local offTanks = {}
+local allOther = {}
 local playerRole
 local lastUpdate = 1 -- Set this to 0 to disable continuous nameplate updates every frame (see code at bottom).
 
@@ -35,6 +36,7 @@ hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
 
 local function collectOffTanks()
     local collectedTanks = {}
+    local collectedOther = {}
     local unitPrefix, unit, i, unitRole
     local isInRaid = IsInRaid()
 
@@ -48,30 +50,46 @@ local function collectOffTanks()
         unit = unitPrefix .. i
         if not UnitIsUnit(unit, "player") then
             unitRole = UnitGroupRolesAssigned(unit)
+            if isInRaid and unitRole == "NONE" then
+                _, _, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
+                if unitRole == "MAINTANK" then
+                    unitRole = "TANK"
+                end
+            end
             if unitRole == "TANK" then
                 table.insert(collectedTanks, unit)
-            elseif isInRaid and unitRole == "NONE" then
-                local _, _, _, _, _, _, _, _, _, raidRole = GetRaidRosterInfo(i)
-                if raidRole == "MAINTANK" then
-                    table.insert(collectedTanks, unit)
-                end
+            else
+                table.insert(collectedOther, unit)
             end
         end
     end
 
-    return collectedTanks
+    return collectedTanks, collectedOther
 end
 
 local function isOfftankTanking(mobUnit)
     local unit, situation
     for _, unit in ipairs(offTanks) do
-        situation = UnitThreatSituation(unit, mobUnit) or -1
-        if situation > 1 then
+        situation = UnitThreatSituation(unit, mobUnit)
+        if situation and situation > 1 then
             return unit
         end
     end
 
     return nil
+end
+
+local function otherHighPercent(mobUnit)
+    local unit, situation, high
+    local highest = 0
+    for _, unit in ipairs(allOther) do
+        _, _, _, situation = UnitDetailedThreatSituation(unit, mobUnit)
+        if situation and situation > highest then
+            highest = situation
+        end
+    end
+
+    return highest
 end
 
 local function updateThreatColor(frame)
@@ -96,7 +114,7 @@ local function updateThreatColor(frame)
             3 = securely tanking, highest threat
            +4 = offtank is tanking.
         ]]--
-        local _, threat, percent = UnitDetailedThreatSituation("player", unit)
+        local _, threat, _, percent = UnitDetailedThreatSituation("player", unit)
         if not threat then
             if UnitAffectingCombat(unit) then
                 threat = 0
@@ -105,17 +123,21 @@ local function updateThreatColor(frame)
             end
             percent = 0
         else
+            percent = percent - otherHighPercent(unit)
             if percent > 100 then
                 percent = percent - 100
+            elseif percent < -100 then
+                percent = percent + 100
             end
             percent = math.min(1, percent / 100)
+	    percent = math.max(-1, percent)
         end
         if playerRole == "TANK" and threat < 2 and isOfftankTanking(unit) then
             threat = 4
         end
 
-        -- only recalculate color when situation was actually changed
-        if not frame.threat or frame.threat.lastSituation ~= threat then
+        -- only recalculate color when situation was actually changed (todo: color by threat diff to next)
+        if not frame.threat or frame.threat.lastThreat ~= threat or frame.threat.lastPercent ~= percent then
             local r, g, b = 0.2, 0.5, 0.9       -- blue for unknown threat
             if playerRole == "TANK" then
                 if threat >= 4 then             -- others tanking offtank
@@ -157,7 +179,8 @@ local function updateThreatColor(frame)
                 };
             end
 
-            frame.threat.lastSituation = threat
+            frame.threat.lastThreat = threat
+            frame.threat.lastPercent = percent
             frame.threat.color.r = r
             frame.threat.color.g = g
             frame.threat.color.b = b
@@ -203,7 +226,7 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
             resetFrame(nameplate.UnitFrame)
         end
     elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" then
-        offTanks = collectOffTanks()
+        offTanks, allOther = collectOffTanks()
     elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
         updatePlayerRole()
     end
