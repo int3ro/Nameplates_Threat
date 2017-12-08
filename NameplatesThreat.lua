@@ -80,11 +80,19 @@ local function isOfftankTanking(mobUnit)
 end
 
 local function otherHighPercent(mobUnit)
-    local unit, situation, high
+    local unitPrefix, unit, situation, high
     local highest = 0
-    for _, unit in ipairs(allOther) do
+
+    if IsInRaid() then
+        unitPrefix = "raid"
+    else
+        unitPrefix = "party"
+    end
+
+    for i = 1, GetNumGroupMembers() do
+        unit = unitPrefix .. i
         _, _, _, situation = UnitDetailedThreatSituation(unit, mobUnit)
-        if situation and situation > highest then
+        if not UnitIsUnit(unit, "player") and situation and situation > highest then
             highest = situation
         end
     end
@@ -124,13 +132,8 @@ local function updateThreatColor(frame)
             percent = 0
         else
             percent = percent - otherHighPercent(unit)
-            if percent > 100 then
-                percent = percent - 100
-            elseif percent < -100 then
-                percent = percent + 100
-            end
+	    percent = math.abs(percent)
             percent = math.min(1, percent / 100)
-	    percent = math.max(-1, percent)
         end
         if playerRole == "TANK" and threat < 2 and isOfftankTanking(unit) then
             threat = 4
@@ -141,34 +144,42 @@ local function updateThreatColor(frame)
             local r, g, b = 0.2, 0.5, 0.9       -- blue for unknown threat
             if playerRole == "TANK" then
                 if threat >= 4 then             -- others tanking offtank
-                    r = r - percent * 0.2       -- blue         no problem
-                    b = b - percent * 0.9
+                    r = r-(1-percent)*0.2       -- blue         no problem
+                    b = b-(1-percent)*0.9
                 elseif threat >= 3 then         -- player tanking by threat
                     r, g, b = 0.0, 0.5, 0.0     -- green        perfection
+                    r = r+(1-percent)*1.0
+                    g = g+(1-percent)*0.5
+                    b = b+(1-percent)*0.4
                 elseif threat >= 2 then         -- player tanking by force
                     r, g, b = 1.0, 1.0, 0.4     -- yellow       attack soon
+                    g = g - percent * 0.5
+                    b = b - percent * 0.4
                 elseif threat >= 1 then         -- others tanking by force
                     r, g, b = 1.0, 0.5, 0.0     -- orange       taunt now
                     g = g + percent * 0.5
                     b = b + percent * 0.4
                 elseif threat >= 0 then         -- others tanking by threat
                     r, g, b = 1.0, 0.0, 0.0     -- red          attack now
-                    g = g + percent * 0.5
+                    g = g+(1-percent)*0.5
                 end
             else
                 if threat >= 3 then             -- player tanking by threat
                     r, g, b = 1.0, 0.0, 0.0     -- red          find tank
+                    g = g+(1-percent)*0.5
                 elseif threat >= 2 then         -- player tanking by force
                     r, g, b = 1.0, 0.5, 0.0     -- orange       find taunt
+                    g = g + percent * 0.5
+                    b = b + percent * 0.4
                 elseif threat >= 1 then         -- others tanking by force
                     r, g, b = 1.0, 1.0, 0.4     -- yellow       disengage
                     g = g - percent * 0.5
                     b = b - percent * 0.4
                 elseif threat >= 0 then         -- others tanking by threat
                     r, g, b = 0.0, 0.5, 0.0     -- green        no problem
-                    r = r + percent
-                    g = g + percent * 0.5
-                    b = b + percent * 0.4
+                    r = r+(1-percent)*1.0
+                    g = g+(1-percent)*0.5
+                    b = b+(1-percent)*0.4
                 end
             end
 
