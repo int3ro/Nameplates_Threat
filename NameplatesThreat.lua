@@ -80,19 +80,18 @@ local function isOfftankTanking(mobUnit)
 end
 
 local function otherHighPercent(mobUnit)
-    local unitPrefix, unit, situation, high
+    local unitArray, unit, situation
     local highest = 0
 
-    if IsInRaid() then
-        unitPrefix = "raid"
+    if playerRole == "TANK" then
+        unitArray = allOther
     else
-        unitPrefix = "party"
+        unitArray = offTanks
     end
 
-    for i = 1, GetNumGroupMembers() do
-        unit = unitPrefix .. i
+    for _, unit in ipairs(unitArray) do
         _, _, _, situation = UnitDetailedThreatSituation(unit, mobUnit)
-        if not UnitIsUnit(unit, "player") and situation and situation > highest then
+        if situation and situation > highest then
             highest = situation
         end
     end
@@ -144,8 +143,9 @@ local function updateThreatColor(frame)
             local r, g, b = 0.2, 0.5, 0.9       -- blue for unknown threat
             if playerRole == "TANK" then
                 if threat >= 4 then             -- others tanking offtank
-                    r = r-(1-percent)*0.2       -- blue         no problem
-                    b = b-(1-percent)*0.9
+                    r = r+(1-percent)*0.8       -- blue         no problem
+                    g = g+(1-percent)*0.5
+                    b = b-(1-percent)*0.5
                 elseif threat >= 3 then         -- player tanking by threat
                     r, g, b = 0.0, 0.5, 0.0     -- green        perfection
                     r = r+(1-percent)*1.0
