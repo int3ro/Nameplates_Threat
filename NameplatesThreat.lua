@@ -1,7 +1,7 @@
-local offTanks = {}
-local allOther = {}
-local playerRole
 local lastUpdate = 1 -- Set this to 0 to disable continuous nameplate updates every frame (see code at bottom).
+local playerRole
+local offTanks = {}
+local nonTanks = {}
 
 local function updatePlayerRole()
     playerRole = GetSpecializationRole(GetSpecialization())
@@ -79,15 +79,9 @@ local function isOfftankTanking(mobUnit)
     return nil
 end
 
-local function otherHighPercent(mobUnit)
-    local unitArray, unit, situation
+local function highestPercent(mobUnit, unitArray)
+    local unit, situation
     local highest = 0
-
-    if playerRole == "TANK" then
-        unitArray = allOther
-    else
-        unitArray = offTanks
-    end
 
     for _, unit in ipairs(unitArray) do
         _, _, _, situation = UnitDetailedThreatSituation(unit, mobUnit)
@@ -130,56 +124,64 @@ local function updateThreatColor(frame)
             end
             percent = 0
         end
-        if playerRole == "TANK" and threat < 2 and isOfftankTanking(unit) then
-            threat = 4
-            percent = 100
-        end
-        percent = percent - otherHighPercent(unit)
-        percent = math.abs(percent)
-        percent = math.min(1, percent / 100)
 
-        -- only recalculate color when situation was actually changed with gradient toward threat sibling
+        -- compare highest group threat percentage with yours for gradient
+        if lastUpdate > 0 then
+            reaction = highestPercent(unit, nonTanks)
+            if playerRole ~= "TANK" then
+                reaction = math.max(highestPercent(unit, offTanks), reaction)
+            elseif threat < 2 and isOfftankTanking(unit) then
+                threat = 4
+                percent = 100
+            end
+            percent = math.abs(percent - reaction)
+            percent = 1 - math.min(1, percent/100)
+        else
+            percent = 0
+        end
+
+        -- only recalculate color when situation was actually changed with gradient toward sibling color
         if not frame.threat or frame.threat.lastThreat ~= threat or frame.threat.lastPercent ~= percent then
             local r, g, b = 0.2, 0.5, 0.9       -- blue for unknown threat
             if playerRole == "TANK" then
                 if threat >= 4 then             -- others tanking offtank
-                    r = r+(1-percent)*0.4       -- blue/magenta no problem
-                    g = g-(1-percent)*0.3
-                    b = b-(1-percent)*0.1
+                    r = r + percent * 0.4       -- blue/magenta no problem
+                    g = g - percent * 0.3
+                    b = b - percent * 0.1
                 elseif threat >= 3 then         -- player tanking by threat
                     r, g, b = 0.0, 0.5, 0.0     -- green/yellow perfection
-                    r = r+(1-percent)*1.0
-                    g = g+(1-percent)*0.5
-                    b = b+(1-percent)*0.4
+                    r = r + percent * 1.0
+                    g = g + percent * 0.5
+                    b = b + percent * 0.4
                 elseif threat >= 2 then         -- player tanking by force
                     r, g, b = 1.0, 1.0, 0.4     -- yellow/green attack soon
-                    r = r-(1-percent)*1.0
-                    g = g-(1-percent)*0.5
-                    b = b-(1-percent)*0.4
+                    r = r - percent * 1.0
+                    g = g - percent * 0.5
+                    b = b - percent * 0.4
                 elseif threat >= 1 then         -- others tanking by force
                     r, g, b = 1.0, 0.5, 0.0     -- orange/red   taunt now
-                    g = g-(1-percent)*0.5
+                    g = g - percent * 0.5
                 elseif threat >= 0 then         -- others tanking by threat
                     r, g, b = 1.0, 0.0, 0.0     -- red/orange   attack now
-                    g = g+(1-percent)*0.5
+                    g = g + percent * 0.5
                 end
             else
                 if threat >= 3 then             -- player tanking by threat
                     r, g, b = 1.0, 0.0, 0.0     -- red/orange   find tank
-                    g = g+(1-percent)*0.5
+                    g = g + percent * 0.5
                 elseif threat >= 2 then         -- player tanking by force
                     r, g, b = 1.0, 0.5, 0.0     -- orange/red   find taunt
-                    g = g-(1-percent)*0.5
+                    g = g - percent * 0.5
                 elseif threat >= 1 then         -- others tanking by force
                     r, g, b = 1.0, 1.0, 0.4     -- yellow/green disengage
-                    r = r-(1-percent)*1.0
-                    g = g-(1-percent)*0.5
-                    b = b-(1-percent)*0.4
+                    r = r - percent * 1.0
+                    g = g - percent * 0.5
+                    b = b - percent * 0.4
                 elseif threat >= 0 then         -- others tanking by threat
                     r, g, b = 0.0, 0.5, 0.0     -- green/yellow no problem
-                    r = r+(1-percent)*1.0
-                    g = g+(1-percent)*0.5
-                    b = b+(1-percent)*0.4
+                    r = r + percent * 1.0
+                    g = g + percent * 0.5
+                    b = b + percent * 0.4
                 end
             end
 
@@ -237,7 +239,7 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
             resetFrame(nameplate.UnitFrame)
         end
     elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" then
-        offTanks, allOther = collectOffTanks()
+        offTanks, nonTanks = collectOffTanks()
     elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
         updatePlayerRole()
     end
