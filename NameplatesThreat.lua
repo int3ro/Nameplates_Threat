@@ -129,23 +129,23 @@ local function updateThreatColor(frame)
                 threat = -1
             end
             percent = 0
-        else
-            percent = percent - otherHighPercent(unit)
-	    percent = math.abs(percent)
-            percent = math.min(1, percent / 100)
         end
         if playerRole == "TANK" and threat < 2 and isOfftankTanking(unit) then
             threat = 4
+            percent = 100
         end
+        percent = percent - otherHighPercent(unit)
+        percent = math.abs(percent)
+        percent = math.min(1, percent / 100)
 
         -- only recalculate color when situation was actually changed (todo: color by threat diff to next)
         if not frame.threat or frame.threat.lastThreat ~= threat or frame.threat.lastPercent ~= percent then
             local r, g, b = 0.2, 0.5, 0.9       -- blue for unknown threat
             if playerRole == "TANK" then
                 if threat >= 4 then             -- others tanking offtank
-                    r = r+(1-percent)*0.8       -- blue         no problem
-                    g = g+(1-percent)*0.5
-                    b = b-(1-percent)*0.5
+                    r = r+(1-percent)*0.4       -- blue         no problem
+                    g = g-(1-percent)*0.3
+                    b = b-(1-percent)*0.1
                 elseif threat >= 3 then         -- player tanking by threat
                     r, g, b = 0.0, 0.5, 0.0     -- green        perfection
                     r = r+(1-percent)*1.0
