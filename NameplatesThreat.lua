@@ -1,4 +1,4 @@
-local lastUpdate = 1 -- Set this to 0 to disable continuous nameplate updates every frame (see code at bottom).
+local lastUpdate = 0 -- Set this to 1 to enable continuous nameplate updates every frame (increased CPU usage).
 local playerRole
 local offTanks = {}
 local nonTanks = {}
@@ -220,8 +220,9 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
                 updateThreatColor(nameplate.UnitFrame)
             end
         end
-        callback()
-        if event == "PLAYER_REGEN_ENABLED" then
+        if event ~= "PLAYER_REGEN_ENABLED" then
+            callback()
+        else
             C_Timer.NewTimer(5.0, callback)
         end -- to ensure colors update when mob is back at their spawn
     elseif event == "NAME_PLATE_UNIT_ADDED" then
@@ -244,7 +245,7 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
         updatePlayerRole()
     end
 end);
-if lastUpdate > 0 then -- one nameplate updated on every frame rendered
+if lastUpdate > 0 then -- one nameplate updated on every frame rendered over 45 fps
     myFrame:SetScript("OnUpdate", function(self, elapsed)
         local nameplate = C_NamePlate.GetNamePlates()
         if lastUpdate < #nameplate then
@@ -253,7 +254,7 @@ if lastUpdate > 0 then -- one nameplate updated on every frame rendered
             lastUpdate = 1
         end
         nameplate = nameplate[lastUpdate]
-        if nameplate then
+        if nameplate and GetFramerate() > 45 then
             updateThreatColor(nameplate.UnitFrame)
         end
     end);
