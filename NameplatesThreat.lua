@@ -117,17 +117,20 @@ local function updateThreatColor(frame)
         ]]--
         local _, threat, _, percent = UnitDetailedThreatSituation("player", unit)
         if not threat then
+            percent = 0
             if UnitAffectingCombat(unit) then
                 threat = 0
             else
                 threat = -1
             end
-            percent = 0
+            reaction = 100
+        else
+            reaction = 0
         end
 
         -- compare highest group threat percentage with yours for gradient
         if lastUpdate > 0 then
-            reaction = highestPercent(unit, nonTanks)
+            reaction = math.max(highestPercent(unit, nonTanks), reaction)
             if playerRole ~= "TANK" then
                 reaction = math.max(highestPercent(unit, offTanks), reaction)
             elseif threat < 2 and isOfftankTanking(unit) then
