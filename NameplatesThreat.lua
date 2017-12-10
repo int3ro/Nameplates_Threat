@@ -1,4 +1,4 @@
-local lastUpdate = 0 -- Set this to 1 to enable continuous nameplate updates every frame (increased CPU usage).
+local lastUpdate = 1 -- Set this to 0 to disable continuous nameplate updates every frame (to reduce CPU usage).
 local playerRole
 local offTanks = {}
 local nonTanks = {}
