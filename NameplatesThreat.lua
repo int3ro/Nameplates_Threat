@@ -108,17 +108,18 @@ local function updateThreatColor(frame)
             and not CompactUnitFrame_IsTapDenied(frame) then
         --[[
             threat:
-           -1 = not on threat table.
+           -1 = not on threat table (not in combat).
             0 = not tanking, lower threat than tank.
             1 = not tanking, higher threat than tank.
-            2 = insecurely tanking, other unit has higher threat but not tanking.
-            3 = securely tanking, highest threat (or tanking handled by offtank).
+            2 = insecurely tanking via taunt skills.
+            3 = securely tanking with highest threat.
+           +4 = a tank is tanking by taunt or threat.
         ]]--
         local _, threat, _, percent = UnitDetailedThreatSituation("player", unit)
         if not threat then
             percent = 0
             if UnitAffectingCombat(unit) then
-                threat = 1
+                threat = 0
             else
                 threat = -1
             end
@@ -128,11 +129,9 @@ local function updateThreatColor(frame)
         end
         if threat > -1 then
             if isOfftankTanking(unit) then
-                threat = 3
+                threat = 4
             elseif playerRole ~= "TANK" then
                 threat = 3 - threat
-            elseif reaction > 0 then
-                threat = 0
             end
         end
 
@@ -152,9 +151,13 @@ local function updateThreatColor(frame)
 
         -- only recalculate color when situation was actually changed with gradient toward sibling color
         if not frame.threat or frame.threat.lastThreat ~= threat or frame.threat.lastPercent ~= percent then
-            local r, g, b = 0.2, 0.5, 0.9   -- blue when outside combat (below colors inverted for nontanks)
+            local r, g, b = 0.6, 0.2, 0.8   -- magenta outside combat (colors below 4 inverted for nontanks)
 
-            if threat >= 3 then             -- player tanking by threat
+            if threat >= 4 then             -- group tanks are tanking
+                r = r-(1-percent)*0.4       -- blue/magenta no problem
+                g = g+(1-percent)*0.3
+                b = b+(1-percent)*0.1
+            elseif threat >= 3 then         -- player tanking by threat
                 r, g, b = 0.0, 0.5, 0.0     -- green/yellow disengage
                 r = r + percent * 1.0
                 g = g + percent * 0.5
