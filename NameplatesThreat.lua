@@ -151,28 +151,28 @@ local function updateThreatColor(frame)
 
         -- only recalculate color when situation was actually changed with gradient toward sibling color
         if not frame.threat or frame.threat.lastThreat ~= threat or frame.threat.lastPercent ~= percent then
-            local r, g, b = 0.6, 0.2, 0.8   -- magenta outside combat (colors below 4 inverted for nontanks)
+            local r, g, b = 0.69,0.69,0.69  -- gray outside combat (colors below 4 inverted for nontanks)
 
             if threat >= 4 then             -- group tanks are tanking
-                r = r-(1-percent)*0.4       -- blue/magenta no problem
-                g = g+(1-percent)*0.3
-                b = b+(1-percent)*0.1
+                r, g, b = 0.00,0.85,0.00    -- green/gray   no problem
+                r = r+(1-percent)*0.69
+                g = g-(1-percent)*0.16
+                b = b+(1-percent)*0.69
             elseif threat >= 3 then         -- player tanking by threat
-                r, g, b = 0.0, 0.5, 0.0     -- green/yellow disengage
-                r = r + percent * 1.0
-                g = g + percent * 0.5
-                b = b + percent * 0.4
+                r = r + percent * 0.31      -- gray/yellow  disengage
+                g = g + percent * 0.31
+                b = b - percent * 0.22
             elseif threat >= 2 then         -- player tanking by force
-                r, g, b = 1.0, 1.0, 0.4     -- yellow/green attack soon
-                r = r - percent * 1.0
-                g = g - percent * 0.5
-                b = b - percent * 0.4
+                r, g, b = 1.00,1.00,0.47    -- yellow/gray  attack soon
+                r = r - percent * 0.31
+                g = g - percent * 0.31
+                b = b + percent * 0.22
             elseif threat >= 1 then         -- others tanking by force
-                r, g, b = 1.0, 0.5, 0.0     -- orange/red   taunt now
-                g = g - percent * 0.5
+                r, g, b = 1.00,0.60,0.00    -- orange/red   taunt now
+                g = g - percent * 0.60
             elseif threat >= 0 then         -- others tanking by threat
-                r, g, b = 1.0, 0.0, 0.0     -- red/orange   attack now
-                g = g + percent * 0.5
+                r, g, b = 1.00,0.00,0.00    -- red/orange   attack now
+                g = g + percent * 0.60
             end
 
             if not frame.threat then

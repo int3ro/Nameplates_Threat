@@ -1,5 +1,5 @@
 ## Interface: 70300
 ## Title: Blizzard Nameplates - Threat
 ## Notes: Colors the nameplate healthbar according to threat.
-## Version: 1.6
+## Version: 1.7
 NameplatesThreat.lua
