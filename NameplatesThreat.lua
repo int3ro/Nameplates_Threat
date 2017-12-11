@@ -129,8 +129,7 @@ local function updateThreatColor(frame)
         if threat > -1 then
             if isOfftankTanking(unit) then
                 threat = 3
-            end
-            if playerRole ~= "TANK" then
+            elseif playerRole ~= "TANK" then
                 threat = 3 - threat
             end
         end
