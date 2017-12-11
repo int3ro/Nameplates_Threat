@@ -118,7 +118,7 @@ local function updateThreatColor(frame)
         if not threat then
             percent = 0
             if UnitAffectingCombat(unit) then
-                threat = 1
+                threat = 0
             else
                 threat = -1
             end
