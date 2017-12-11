@@ -118,7 +118,7 @@ local function updateThreatColor(frame)
         if not threat then
             percent = 0
             if UnitAffectingCombat(unit) then
-                threat = 0
+                threat = 1
             else
                 threat = -1
             end
@@ -127,10 +127,11 @@ local function updateThreatColor(frame)
             reaction = 0
         end
         if threat > -1 then
+            if isOfftankTanking(unit) then
+                threat = 3
+            end
             if playerRole ~= "TANK" then
                 threat = 3 - threat
-            elseif isOfftankTanking(unit) then
-                threat = 3
             end
         end
 
