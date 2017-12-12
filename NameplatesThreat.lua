@@ -1,11 +1,7 @@
 local lastUpdate = 1 -- Set this to 0 to disable continuous nameplate updates every frame (to reduce CPU usage).
-local playerRole
+local playerRole = 0
 local offTanks = {}
 local nonTanks = {}
-
-local function updatePlayerRole()
-    playerRole = GetSpecializationRole(GetSpecialization())
-end
 
 local function resetFrame(frame)
     if frame.threat then
@@ -94,10 +90,6 @@ local function highestPercent(mobUnit, unitArray)
 end
 
 local function updateThreatColor(frame)
-    if not playerRole then
-        updatePlayerRole()
-    end
-
     local unit = frame.unit
     -- http://wowwiki.wikia.com/wiki/API_UnitReaction
     local reaction = UnitReaction("player", unit)
@@ -154,24 +146,25 @@ local function updateThreatColor(frame)
             local r, g, b = 0.69,0.69,0.69  -- gray outside combat (colors below 4 inverted for nontanks)
 
             if threat >= 4 then             -- group tanks are tanking
-                r, g, b = 0.00,0.85,0.00    -- green/gray   no problem
-                r = r+(1-percent)*0.69
-                g = g-(1-percent)*0.16
-                b = b+(1-percent)*0.69
+                r, g, b = 0.00, 0.85, 0.00  -- green/gray   no problem
+                r = r + percent * 0.69
+                g = g - percent * 0.16
+                b = b + percent * 0.69
             elseif threat >= 3 then         -- player tanking by threat
-                r = r + percent * 0.31      -- gray/yellow  disengage
+                r, g, b = 0.69, 0.69, 0.69  -- gray/yellow  disengage
+                r = r + percent * 0.31
                 g = g + percent * 0.31
                 b = b - percent * 0.22
             elseif threat >= 2 then         -- player tanking by force
-                r, g, b = 1.00,1.00,0.47    -- yellow/gray  attack soon
+                r, g, b = 1.00, 1.00, 0.47  -- yellow/gray  attack soon
                 r = r - percent * 0.31
                 g = g - percent * 0.31
                 b = b + percent * 0.22
             elseif threat >= 1 then         -- others tanking by force
-                r, g, b = 1.00,0.60,0.00    -- orange/red   taunt now
+                r, g, b = 1.00, 0.60, 0.00  -- orange/red   taunt now
                 g = g - percent * 0.60
             elseif threat >= 0 then         -- others tanking by threat
-                r, g, b = 1.00,0.00,0.00    -- red/orange   attack now
+                r, g, b = 1.00, 0.00, 0.00  -- red/orange   attack now
                 g = g + percent * 0.60
             end
 
@@ -203,6 +196,7 @@ myFrame:RegisterEvent("NAME_PLATE_UNIT_REMOVED");
 myFrame:RegisterEvent("PLAYER_ROLES_ASSIGNED");
 myFrame:RegisterEvent("RAID_ROSTER_UPDATE");
 myFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
+myFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
 myFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
         local callback = function()
@@ -231,11 +225,12 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
         end
     elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" then
         offTanks, nonTanks = collectOffTanks()
-    elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
-        updatePlayerRole()
+    elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
+        offTanks, nonTanks = collectOffTanks()
+        playerRole = GetSpecializationRole(GetSpecialization())
     end
 end);
-if lastUpdate > 0 then -- one nameplate updated on every frame rendered over 45 fps
+if lastUpdate > 0 then -- one nameplate updated on every frame rendered over 30 fps
     myFrame:SetScript("OnUpdate", function(self, elapsed)
         local nameplate = C_NamePlate.GetNamePlates()
         if lastUpdate < #nameplate then
@@ -244,7 +239,7 @@ if lastUpdate > 0 then -- one nameplate updated on every frame rendered over 45 
             lastUpdate = 1
         end
         nameplate = nameplate[lastUpdate]
-        if nameplate and GetFramerate() > 45 then
+        if nameplate and GetFramerate() > 30 then
             updateThreatColor(nameplate.UnitFrame)
         end
     end);
