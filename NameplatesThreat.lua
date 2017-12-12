@@ -46,7 +46,7 @@ local function collectOffTanks()
         unit = unitPrefix .. i
         if not UnitIsUnit(unit, "player") then
             unitRole = UnitGroupRolesAssigned(unit)
-            if isInRaid and unitRole == "NONE" then
+            if isInRaid and unitRole ~= "TANK" then
                 _, _, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
                 if unitRole == "MAINTANK" then
                     unitRole = "TANK"
@@ -143,7 +143,7 @@ local function updateThreatColor(frame)
 
         -- only recalculate color when situation was actually changed with gradient toward sibling color
         if not frame.threat or frame.threat.lastThreat ~= threat or frame.threat.lastPercent ~= percent then
-            local r, g, b = 0.69,0.69,0.69  -- gray outside combat (colors below 4 inverted for nontanks)
+            local r, g, b = 0.29,0.29,0.29  -- dark outside combat (colors below 4 inverted for nontanks)
 
             if threat >= 4 then             -- group tanks are tanking
                 r, g, b = 0.00, 0.85, 0.00  -- green/gray   no problem
@@ -223,9 +223,8 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
         if nameplate then
             resetFrame(nameplate.UnitFrame)
         end
-    elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" then
-        offTanks, nonTanks = collectOffTanks()
-    elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
+    elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
+           event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
         offTanks, nonTanks = collectOffTanks()
         playerRole = GetSpecializationRole(GetSpecialization())
     end
