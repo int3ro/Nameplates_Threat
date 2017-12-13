@@ -91,7 +91,7 @@ end
 
 local function updateThreatColor(frame)
     local unit = frame.unit
-    local reaction = UnitAffectingCombat(unit)
+    local reaction = UnitIsFriend("player", unit .. "target")
 
     if UnitCanAttack("player", unit)
         and (reaction or UnitAffectingCombat("player") or UnitReaction(unit, "player") < 4)
