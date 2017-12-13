@@ -91,13 +91,11 @@ end
 
 local function updateThreatColor(frame)
     local unit = frame.unit
-    -- http://wowwiki.wikia.com/wiki/API_UnitReaction
-    local reaction = UnitReaction("player", unit)
-    if reaction
-            and reaction < 5
-            and (reaction < 4 or CompactUnitFrame_IsOnThreatListWithPlayer(frame.displayedUnit))
-            and not UnitIsPlayer(unit)
-            and not CompactUnitFrame_IsTapDenied(frame) then
+    local reaction = UnitAffectingCombat(unit)
+
+    if UnitCanAttack("player", unit)
+        and (reaction or UnitAffectingCombat("player") or UnitReaction(unit, "player") < 4)
+        and not UnitIsPlayer(unit) and not CompactUnitFrame_IsTapDenied(frame) then
         --[[
             threat:
            -1 = not on threat table (not in combat).
@@ -110,7 +108,7 @@ local function updateThreatColor(frame)
         local _, threat, _, percent = UnitDetailedThreatSituation("player", unit)
         if not threat then
             percent = 0
-            if UnitAffectingCombat(unit) then
+            if reaction then
                 threat = 0
             else
                 threat = -1
@@ -229,7 +227,7 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
         playerRole = GetSpecializationRole(GetSpecialization())
     end
 end);
-if lastUpdate > 0 then -- one nameplate updated on every frame rendered over 30 fps
+if lastUpdate > 0 then -- one nameplate updated on every frame rendered over 45 fps
     myFrame:SetScript("OnUpdate", function(self, elapsed)
         local nameplate = C_NamePlate.GetNamePlates()
         if lastUpdate < #nameplate then
@@ -238,7 +236,7 @@ if lastUpdate > 0 then -- one nameplate updated on every frame rendered over 30 
             lastUpdate = 1
         end
         nameplate = nameplate[lastUpdate]
-        if nameplate and GetFramerate() > 30 then
+        if nameplate and GetFramerate() > 45 then
             updateThreatColor(nameplate.UnitFrame)
         end
     end);
