@@ -30,7 +30,7 @@ end
 -- This function is called constantly during combat. The color is only going to be reset after it was actually changed.
 hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
 
-local function collectOffTanks()
+local function getGroupRoles()
     local collectedTanks = {}
     local collectedOther = {}
     local unitPrefix, unit, i, unitRole
@@ -63,107 +63,128 @@ local function collectOffTanks()
     return collectedTanks, collectedOther
 end
 
-local function isOfftankTanking(mobUnit)
-    local unit, situation
+local function threatSituation(monster)
+    local threatStatus = -1
+    local tankValue    =  0
+    local offTankValue =  0
+    local playerValue  =  0
+    local nonTankValue =  0
+    local unit, isTanking, status, threatValue
+
+    -- store if an offtank is tanking, or store their threat value if higher than others
     for _, unit in ipairs(offTanks) do
-        situation = UnitThreatSituation(unit, mobUnit)
-        if situation and situation > 1 then
-            return unit
+        isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
+        if isTanking then
+            threatStatus = status + 2
+            tankValue = threatValue
+        elseif status and threatValue > offTankValue then
+            offTankValue = threatValue
         end
     end
-
-    return nil
-end
-
-local function highestPercent(mobUnit, unitArray)
-    local unit, situation
-    local highest = 0
-
-    for _, unit in ipairs(unitArray) do
-        _, _, _, situation = UnitDetailedThreatSituation(unit, mobUnit)
-        if situation and situation > highest then
-            highest = situation
+    -- store if the player is tanking, or store their threat value if higher than others
+    isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
+    if isTanking then
+        threatStatus = status
+        tankValue = threatValue
+    elseif status then
+        playerValue = threatValue
+    end
+    -- store if a non-tank is tanking, or store their threat value if higher than others
+    for _, unit in ipairs(nonTanks) do
+        isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
+        if isTanking then
+            threatStatus = 3 - status
+            tankValue = threatValue
+        elseif status and threatValue > nonTankValue then
+            nonTankValue = threatValue
         end
     end
-
-    return highest
+    -- deliver the stored information describing threat situation for this monster
+    return threatStatus, tankValue, offTankValue, playerValue, nonTankValue
 end
 
 local function updateThreatColor(frame)
     local unit = frame.unit
-    local reaction = UnitIsFriend("player", unit .. "target")
+    local ratio = UnitIsFriend("player", unit .. "target") or UnitAffectingCombat(unit)
 
     if UnitCanAttack("player", unit)
-        and (reaction or UnitAffectingCombat("player") or UnitReaction(unit, "player") < 4)
+        and (ratio or UnitAffectingCombat("player") or UnitReaction(unit, "player") < 4)
         and not UnitIsPlayer(unit) and not CompactUnitFrame_IsTapDenied(frame) then
-        --[[
-            threat:
-           -1 = not on threat table (not in combat).
-            0 = not tanking, lower threat than tank.
-            1 = not tanking, higher threat than tank.
-            2 = insecurely tanking via taunt skills.
-            3 = securely tanking with highest threat.
-           +4 = a tank is tanking by taunt or threat.
-        ]]--
-        local _, threat, _, percent = UnitDetailedThreatSituation("player", unit)
-        if not threat then
-            percent = 0
-            if reaction then
-                threat = 0
-            else
-                threat = -1
-            end
-            reaction = 100
-        else
-            reaction = 0
-        end
-        if threat > -1 then
-            if isOfftankTanking(unit) then
-                threat = 4
-            elseif playerRole ~= "TANK" then
-                threat = 3 - threat
-            end
-        end
 
-        -- compare highest group threat percentage with yours for gradient
-        if lastUpdate > 0 then
-            reaction = math.max(highestPercent(unit, nonTanks), reaction)
+        --[[Custom threat status for nameplate colors:
+           -1 = no threat data (target not in combat).
+            0 = a non tank is tanking by threat.
+            1 = a non tank is tanking by force.
+            2 = player tanking monster by force.
+            3 = player tanking monster by threat.
+           +4 = another tank is tanking by force.
+           +5 = another tank is tanking by threat.
+        ]]--
+        local threatStatus, tankValue, offTankValue, playerValue, nonTankValue = threatSituation(unit)
+
+        -- if CPU heavy features are enabled, compare highest group threat with tank for color gradient
+        if lastUpdate > 0 and threatStatus > -1 then
             if playerRole == "TANK" then
-                percent = math.max(highestPercent(unit, offTanks), percent)
+                if threatStatus == 0 or threatStatus == 1 then
+                    ratio = math.max(offTankValue, playerValue)
+                else -- you or an offtank are tanking the monster
+                    ratio = nonTankValue
+                end
+                if threatStatus == 1 or threatStatus == 2 or threatStatus == 4 then
+                    ratio = tankValue / math.max(ratio, 1)
+                else -- monster is tanked by someone via threat
+                    ratio = ratio / math.max(tankValue, 1)
+                end
             else
-                reaction = math.max(highestPercent(unit, offTanks), reaction)
+                if threatStatus == 2 or threatStatus == 3 then
+                    ratio = math.max(offTankValue, nonTankValue)
+                else -- someone is tanking the monster for you
+                    ratio = playerValue
+                end
+                if threatStatus == 1 or threatStatus == 3 or threatStatus == 4 then
+                    ratio = tankValue / math.max(ratio, 1)
+                else -- someone else has higher monster threat
+                    ratio = ratio / math.max(tankValue, 1)
+                end
             end
-            percent = math.abs(percent - reaction)
-            percent = 1 - math.min(1, percent/100)
+            ratio = math.min(ratio, 1)
         else
-            percent = 0
+            ratio = 0
         end
+        if threatStatus > -1 and playerRole ~= "TANK" and threatStatus < 4 then
+            threatStatus = 3 - threatStatus
+        end -- invert colors when not a tank role and no group tanks are tanking
 
         -- only recalculate color when situation was actually changed with gradient toward sibling color
-        if not frame.threat or frame.threat.lastThreat ~= threat or frame.threat.lastPercent ~= percent then
+        if not frame.threat or frame.threat.lastStatus ~= threatStatus or frame.threat.lastRatio ~= ratio then
             local r, g, b = 0.29,0.29,0.29  -- dark outside combat (colors below 4 inverted for nontanks)
 
-            if threat >= 4 then             -- group tanks are tanking
+            if threatStatus >= 5 then       -- tanks tanking by threat
                 r, g, b = 0.00, 0.85, 0.00  -- green/gray   no problem
-                r = r + percent * 0.69
-                g = g - percent * 0.16
-                b = b + percent * 0.69
-            elseif threat >= 3 then         -- player tanking by threat
+                r = r + ratio * 0.69
+                g = g - ratio * 0.16
+                b = b + ratio * 0.69
+            elseif threatStatus >= 4 then   -- tanks tanking by force
+                r, g, b = 0.69, 0.69, 0.69  -- gray/green   no problem
+                r = r - ratio * 0.69
+                g = g + ratio * 0.16
+                b = b - ratio * 0.69
+            elseif threatStatus >= 3 then   -- player tanking by threat
                 r, g, b = 0.69, 0.69, 0.69  -- gray/yellow  disengage
-                r = r + percent * 0.31
-                g = g + percent * 0.31
-                b = b - percent * 0.22
-            elseif threat >= 2 then         -- player tanking by force
+                r = r + ratio * 0.31
+                g = g + ratio * 0.31
+                b = b - ratio * 0.22
+            elseif threatStatus >= 2 then   -- player tanking by force
                 r, g, b = 1.00, 1.00, 0.47  -- yellow/gray  attack soon
-                r = r - percent * 0.31
-                g = g - percent * 0.31
-                b = b + percent * 0.22
-            elseif threat >= 1 then         -- others tanking by force
+                r = r - ratio * 0.31
+                g = g - ratio * 0.31
+                b = b + ratio * 0.22
+            elseif threatStatus >= 1 then   -- others tanking by force
                 r, g, b = 1.00, 0.60, 0.00  -- orange/red   taunt now
-                g = g - percent * 0.60
-            elseif threat >= 0 then         -- others tanking by threat
+                g = g - ratio * 0.60
+            elseif threatStatus >= 0 then   -- others tanking by threat
                 r, g, b = 1.00, 0.00, 0.00  -- red/orange   attack now
-                g = g + percent * 0.60
+                g = g + ratio * 0.60
             end
 
             if not frame.threat then
@@ -173,8 +194,8 @@ local function updateThreatColor(frame)
                 };
             end
 
-            frame.threat.lastThreat = threat
-            frame.threat.lastPercent = percent
+            frame.threat.lastStatus = threatStatus
+            frame.threat.lastRatio = ratio
             frame.threat.color.r = r
             frame.threat.color.g = g
             frame.threat.color.b = b
@@ -223,7 +244,7 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
         end
     elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
            event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
-        offTanks, nonTanks = collectOffTanks()
+        offTanks, nonTanks = getGroupRoles()
         playerRole = GetSpecializationRole(GetSpecialization())
     end
 end);
