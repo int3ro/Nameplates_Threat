@@ -1,4 +1,4 @@
-local lastUpdate = 1 -- Set this to 0 to disable continuous nameplate updates every frame (to reduce CPU usage).
+local lastUpdate = 0 -- Set this to 0 to disable continuous nameplate updates every frame (to reduce CPU usage).
 local playerRole = 0
 local offTanks = {}
 local nonTanks = {}
@@ -63,7 +63,7 @@ local function getGroupRoles()
     return collectedTanks, collectedOther
 end
 
-local function threatSituation(monster)
+local function threatSituation(monster, statusOnly)
     local threatStatus = -1
     local tankValue    =  0
     local offTankValue =  0
@@ -73,6 +73,7 @@ local function threatSituation(monster)
 
     -- store if an offtank is tanking, or store their threat value if higher than others
     for _, unit in ipairs(offTanks) do
+        if statusOnly and threatStatus > -1 then break end -- early escape if not needed
         isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
         if isTanking then
             threatStatus = status + 2
@@ -82,15 +83,18 @@ local function threatSituation(monster)
         end
     end
     -- store if the player is tanking, or store their threat value if higher than others
-    isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
-    if isTanking then
-        threatStatus = status
-        tankValue = threatValue
-    elseif status then
-        playerValue = threatValue
+    if not(statusOnly and threatStatus > -1) then
+        isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
+        if isTanking then
+            threatStatus = status
+            tankValue = threatValue
+        elseif status then
+            playerValue = threatValue
+        end
     end
     -- store if a non-tank is tanking, or store their threat value if higher than others
     for _, unit in ipairs(nonTanks) do
+        if statusOnly and threatStatus > -1 then break end -- early escape if not needed
         isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
         if isTanking then
             threatStatus = 3 - status
@@ -99,20 +103,21 @@ local function threatSituation(monster)
             nonTankValue = threatValue
         end
     end
+    if threatStatus < 0 and UnitIsFriend("player", monster .. "target") then
+        threatStatus = 0 -- ensure threat status if monster is targeting a friend
+    end
     -- deliver the stored information describing threat situation for this monster
     return threatStatus, tankValue, offTankValue, playerValue, nonTankValue
 end
 
 local function updateThreatColor(frame)
-    local unit = frame.unit
-    local ratio = UnitIsFriend("player", unit .. "target") or UnitAffectingCombat(unit)
+    local unit = frame.unit -- variable also reused for the threat ratio further down
 
-    if UnitCanAttack("player", unit)
-        and (ratio or UnitAffectingCombat("player") or UnitReaction(unit, "player") < 4)
+    if UnitCanAttack("player", unit) and (UnitAffectingCombat(unit) or UnitReaction(unit, "player") < 4)
         and not UnitIsPlayer(unit) and not CompactUnitFrame_IsTapDenied(frame) then
 
-        --[[Custom threat status for nameplate colors:
-           -1 = no threat data (target not in combat).
+        --[[Custom threat situation nameplate coloring:
+           -1 = no threat data (monster not in combat).
             0 = a non tank is tanking by threat.
             1 = a non tank is tanking by force.
             2 = player tanking monster by force.
@@ -120,71 +125,66 @@ local function updateThreatColor(frame)
            +4 = another tank is tanking by force.
            +5 = another tank is tanking by threat.
         ]]--
-        local threatStatus, tankValue, offTankValue, playerValue, nonTankValue = threatSituation(unit)
+        local status, tank, offtank, player, nontank = threatSituation(unit, lastUpdate > 0)
 
         -- if CPU heavy features are enabled, compare highest group threat with tank for color gradient
-        if lastUpdate > 0 and threatStatus > -1 then
+        if lastUpdate > 0 and status > -1 then
             if playerRole == "TANK" then
-                if threatStatus == 0 or threatStatus == 1 then
-                    ratio = math.max(offTankValue, playerValue)
+                if status == 0 or status == 1 then
+                    unit = math.max(offtank, player)
                 else -- you or an offtank are tanking the monster
-                    ratio = nonTankValue
-                end
-                if threatStatus == 1 or threatStatus == 2 or threatStatus == 4 then
-                    ratio = tankValue / math.max(ratio, 1)
-                else -- monster is tanked by someone via threat
-                    ratio = ratio / math.max(tankValue, 1)
+                    unit = nontank
                 end
             else
-                if threatStatus == 2 or threatStatus == 3 then
-                    ratio = math.max(offTankValue, nonTankValue)
+                if status == 2 or status == 3 then
+                    unit = math.max(offtank, nontank)
                 else -- someone is tanking the monster for you
-                    ratio = playerValue
-                end
-                if threatStatus == 1 or threatStatus == 3 or threatStatus == 4 then
-                    ratio = tankValue / math.max(ratio, 1)
-                else -- someone else has higher monster threat
-                    ratio = ratio / math.max(tankValue, 1)
+                    unit = player
                 end
             end
-            ratio = math.min(ratio, 1)
+            if status == 1 or status == 2 or status == 4 then
+                unit = tank / math.max(unit, 1)
+            else -- monster is tanked by someone via threat
+                unit = unit / math.max(tank, 1)
+            end
+            unit = math.min(unit, 1)
         else
-            ratio = 0
+            unit = 0
         end
-        if threatStatus > -1 and playerRole ~= "TANK" and threatStatus < 4 then
-            threatStatus = 3 - threatStatus
+        if status > -1 and playerRole ~= "TANK" and status < 4 then
+            status = 3 - status
         end -- invert colors when not a tank role and no group tanks are tanking
 
         -- only recalculate color when situation was actually changed with gradient toward sibling color
-        if not frame.threat or frame.threat.lastStatus ~= threatStatus or frame.threat.lastRatio ~= ratio then
+        if not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= unit then
             local r, g, b = 0.29,0.29,0.29  -- dark outside combat (colors below 4 inverted for nontanks)
 
-            if threatStatus >= 5 then       -- tanks tanking by threat
+            if status >= 5 then             -- tanks tanking by threat
                 r, g, b = 0.00, 0.85, 0.00  -- green/gray   no problem
-                r = r + ratio * 0.69
-                g = g - ratio * 0.16
-                b = b + ratio * 0.69
-            elseif threatStatus >= 4 then   -- tanks tanking by force
+                r = r + unit * 0.69
+                g = g - unit * 0.16
+                b = b + unit * 0.69
+            elseif status >= 4 then         -- tanks tanking by force
                 r, g, b = 0.69, 0.69, 0.69  -- gray/green   no problem
-                r = r - ratio * 0.69
-                g = g + ratio * 0.16
-                b = b - ratio * 0.69
-            elseif threatStatus >= 3 then   -- player tanking by threat
+                r = r - unit * 0.69
+                g = g + unit * 0.16
+                b = b - unit * 0.69
+            elseif status >= 3 then         -- player tanking by threat
                 r, g, b = 0.69, 0.69, 0.69  -- gray/yellow  disengage
-                r = r + ratio * 0.31
-                g = g + ratio * 0.31
-                b = b - ratio * 0.22
-            elseif threatStatus >= 2 then   -- player tanking by force
+                r = r + unit * 0.31
+                g = g + unit * 0.31
+                b = b - unit * 0.22
+            elseif status >= 2 then         -- player tanking by force
                 r, g, b = 1.00, 1.00, 0.47  -- yellow/gray  attack soon
-                r = r - ratio * 0.31
-                g = g - ratio * 0.31
-                b = b + ratio * 0.22
-            elseif threatStatus >= 1 then   -- others tanking by force
+                r = r - unit * 0.31
+                g = g - unit * 0.31
+                b = b + unit * 0.22
+            elseif status >= 1 then         -- others tanking by force
                 r, g, b = 1.00, 0.60, 0.00  -- orange/red   taunt now
-                g = g - ratio * 0.60
-            elseif threatStatus >= 0 then   -- others tanking by threat
+                g = g - unit * 0.60
+            elseif status >= 0 then         -- others tanking by threat
                 r, g, b = 1.00, 0.00, 0.00  -- red/orange   attack now
-                g = g + ratio * 0.60
+                g = g + unit * 0.60
             end
 
             if not frame.threat then
@@ -194,8 +194,8 @@ local function updateThreatColor(frame)
                 };
             end
 
-            frame.threat.lastStatus = threatStatus
-            frame.threat.lastRatio = ratio
+            frame.threat.lastStatus = status
+            frame.threat.lastRatio = unit
             frame.threat.color.r = r
             frame.threat.color.g = g
             frame.threat.color.b = b
