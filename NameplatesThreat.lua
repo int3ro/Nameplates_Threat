@@ -1,4 +1,5 @@
-local lastUpdate = 1 -- Set this to 0 to disable continuous nameplate updates every frame (to reduce CPU usage).
+local nextUpdate = 0.2 -- set this 0 to disable continuous nameplate updates every x seconds
+local thisUpdate = 0
 local playerRole = 0
 local offTanks = {}
 local nonTanks = {}
@@ -124,7 +125,7 @@ local function updateThreatColor(frame)
         local status, tank, offtank, player, nontank = threatSituation(unit)
 
         -- if CPU heavy features are enabled, compare highest group threat with tank for color gradient
-        if lastUpdate > 0 and status > -1 then
+        if nextUpdate > 0 and status > -1 then
             if playerRole == "TANK" then
                 if status == 0 or status == 1 then
                     unit = math.max(offtank, player)
@@ -218,6 +219,7 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
                 updateThreatColor(nameplate.UnitFrame)
             end
+            thisUpdate = 0
         end
         if event ~= "PLAYER_REGEN_ENABLED" then
             callback()
@@ -244,17 +246,14 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
         playerRole = GetSpecializationRole(GetSpecialization())
     end
 end);
-if lastUpdate > 0 then -- one nameplate updated on every frame rendered over 45 fps
+if nextUpdate > 0 then -- one nameplate updated every x seconds (increased CPU usage)
     myFrame:SetScript("OnUpdate", function(self, elapsed)
-        local nameplate = C_NamePlate.GetNamePlates()
-        if lastUpdate < #nameplate then
-            lastUpdate = lastUpdate + 1
-        else
-            lastUpdate = 1
-        end
-        nameplate = nameplate[lastUpdate]
-        if nameplate and GetFramerate() > 45 then
-            updateThreatColor(nameplate.UnitFrame)
+        thisUpdate = thisUpdate + elapsed
+        if thisUpdate >= nextUpdate then
+            for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
+                updateThreatColor(nameplate.UnitFrame)
+            end
+            thisUpdate = 0
         end
     end);
 end -- remember "/console reloadui" for any script changes to take effect
