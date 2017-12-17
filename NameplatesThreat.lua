@@ -1,4 +1,4 @@
-local lastUpdate = 0 -- Set this to 0 to disable continuous nameplate updates every frame (to reduce CPU usage).
+local lastUpdate = 1 -- Set this to 0 to disable continuous nameplate updates every frame (to reduce CPU usage).
 local playerRole = 0
 local offTanks = {}
 local nonTanks = {}
@@ -63,7 +63,7 @@ local function getGroupRoles()
     return collectedTanks, collectedOther
 end
 
-local function threatSituation(monster, statusOnly)
+local function threatSituation(monster)
     local threatStatus = -1
     local tankValue    =  0
     local offTankValue =  0
@@ -73,7 +73,6 @@ local function threatSituation(monster, statusOnly)
 
     -- store if an offtank is tanking, or store their threat value if higher than others
     for _, unit in ipairs(offTanks) do
-        if statusOnly and threatStatus > -1 then break end -- early escape if not needed
         isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
         if isTanking then
             threatStatus = status + 2
@@ -83,18 +82,15 @@ local function threatSituation(monster, statusOnly)
         end
     end
     -- store if the player is tanking, or store their threat value if higher than others
-    if not(statusOnly and threatStatus > -1) then
-        isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
-        if isTanking then
-            threatStatus = status
-            tankValue = threatValue
-        elseif status then
-            playerValue = threatValue
-        end
+    isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
+    if isTanking then
+        threatStatus = status
+        tankValue = threatValue
+    elseif status then
+        playerValue = threatValue
     end
     -- store if a non-tank is tanking, or store their threat value if higher than others
     for _, unit in ipairs(nonTanks) do
-        if statusOnly and threatStatus > -1 then break end -- early escape if not needed
         isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
         if isTanking then
             threatStatus = 3 - status
@@ -125,7 +121,7 @@ local function updateThreatColor(frame)
            +4 = another tank is tanking by force.
            +5 = another tank is tanking by threat.
         ]]--
-        local status, tank, offtank, player, nontank = threatSituation(unit, lastUpdate > 0)
+        local status, tank, offtank, player, nontank = threatSituation(unit)
 
         -- if CPU heavy features are enabled, compare highest group threat with tank for color gradient
         if lastUpdate > 0 and status > -1 then
