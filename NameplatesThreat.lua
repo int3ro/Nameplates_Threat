@@ -81,7 +81,7 @@ local function threatSituation(monster)
         elseif status and threatValue > offTankValue then
             offTankValue = threatValue
         elseif UnitIsUnit(unit, monster .. "target") then
-            threatStatus = 5 -- ensure threat status if monster is targeting an offtank
+            threatStatus = 5 -- ensure threat status if monster is targeting a tank
         end
     end
     -- store if the player is tanking, or store their threat value if higher than others
@@ -100,9 +100,14 @@ local function threatSituation(monster)
             tankValue = threatValue
         elseif status and threatValue > nonTankValue then
             nonTankValue = threatValue
-        elseif UnitIsUnit(unit, monster .. "target") then
-            threatStatus = 0 -- ensure threat status if monster is targeting a nontank
         end
+    end
+    if threatStatus < 0 and UnitIsFriend("player", monster .. "target") then
+        threatStatus = 0 -- ensure threat status if monster is targeting a friend
+        tankValue    = 0
+        offTankValue = 0
+        playerValue  = 0
+        nonTankValue = 0
     end
     -- deliver the stored information describing threat situation for this monster
     return threatStatus, tankValue, offTankValue, playerValue, nonTankValue
