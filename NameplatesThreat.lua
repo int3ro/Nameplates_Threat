@@ -1,11 +1,8 @@
-local lastUpdate = 1 -- Set this to 0 to disable continuous nameplate updates every frame (to reduce CPU usage).
-local playerRole
+local nextUpdate = 0.2 -- set this 0 to disable continuous nameplate updates every x seconds
+local thisUpdate = 0
+local playerRole = 0
 local offTanks = {}
 local nonTanks = {}
-
-local function updatePlayerRole()
-    playerRole = GetSpecializationRole(GetSpecialization())
-end
 
 local function resetFrame(frame)
     if frame.threat then
@@ -34,7 +31,7 @@ end
 -- This function is called constantly during combat. The color is only going to be reset after it was actually changed.
 hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
 
-local function collectOffTanks()
+local function getGroupRoles()
     local collectedTanks = {}
     local collectedOther = {}
     local unitPrefix, unit, i, unitRole
@@ -50,7 +47,7 @@ local function collectOffTanks()
         unit = unitPrefix .. i
         if not UnitIsUnit(unit, "player") then
             unitRole = UnitGroupRolesAssigned(unit)
-            if isInRaid and unitRole == "NONE" then
+            if isInRaid and unitRole ~= "TANK" then
                 _, _, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
                 if unitRole == "MAINTANK" then
                     unitRole = "TANK"
@@ -67,112 +64,130 @@ local function collectOffTanks()
     return collectedTanks, collectedOther
 end
 
-local function isOfftankTanking(mobUnit)
-    local unit, situation
+local function threatSituation(monster)
+    local threatStatus = -1
+    local tankValue    =  0
+    local offTankValue =  0
+    local playerValue  =  0
+    local nonTankValue =  0
+    local unit, isTanking, status, threatValue
+
+    -- store if an offtank is tanking, or store their threat value if higher than others
     for _, unit in ipairs(offTanks) do
-        situation = UnitThreatSituation(unit, mobUnit)
-        if situation and situation > 1 then
-            return unit
+        isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
+        if isTanking then
+            threatStatus = status + 2
+            tankValue = threatValue
+        elseif status and threatValue > offTankValue then
+            offTankValue = threatValue
+        elseif UnitIsUnit(unit, monster .. "target") then
+            threatStatus = 5 -- ensure threat status if monster is targeting a tank
         end
     end
-
-    return nil
-end
-
-local function highestPercent(mobUnit, unitArray)
-    local unit, situation
-    local highest = 0
-
-    for _, unit in ipairs(unitArray) do
-        _, _, _, situation = UnitDetailedThreatSituation(unit, mobUnit)
-        if situation and situation > highest then
-            highest = situation
+    -- store if the player is tanking, or store their threat value if higher than others
+    isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
+    if isTanking then
+        threatStatus = status
+        tankValue = threatValue
+    elseif status then
+        playerValue = threatValue
+    end
+    -- store if a non-tank is tanking, or store their threat value if higher than others
+    for _, unit in ipairs(nonTanks) do
+        isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
+        if isTanking then
+            threatStatus = 3 - status
+            tankValue = threatValue
+        elseif status and threatValue > nonTankValue then
+            nonTankValue = threatValue
         end
     end
-
-    return highest
+    if threatStatus < 0 and UnitIsFriend("player", monster .. "target") then
+        threatStatus = 0 -- ensure threat status if monster is targeting a friend
+        tankValue    = 0
+        offTankValue = 0
+        playerValue  = 0
+        nonTankValue = 0
+    end
+    -- deliver the stored information describing threat situation for this monster
+    return threatStatus, tankValue, offTankValue, playerValue, nonTankValue
 end
 
 local function updateThreatColor(frame)
-    if not playerRole then
-        updatePlayerRole()
-    end
+    local unit = frame.unit -- variable also reused for the threat ratio further down
 
-    local unit = frame.unit
-    -- http://wowwiki.wikia.com/wiki/API_UnitReaction
-    local reaction = UnitReaction("player", unit)
-    if reaction
-            and reaction < 5
-            and (reaction < 4 or CompactUnitFrame_IsOnThreatListWithPlayer(frame.displayedUnit))
-            and not UnitIsPlayer(unit)
-            and not CompactUnitFrame_IsTapDenied(frame) then
-        --[[
-            threat:
-           -1 = not on threat table (not in combat).
-            0 = not tanking, lower threat than tank.
-            1 = not tanking, higher threat than tank.
-            2 = insecurely tanking via taunt skills.
-            3 = securely tanking with highest threat.
-           +4 = a tank is tanking by taunt or threat.
+    if UnitCanAttack("player", unit) and (UnitAffectingCombat(unit) or UnitReaction(unit, "player") < 4)
+        and not UnitIsPlayer(unit) and not CompactUnitFrame_IsTapDenied(frame) then
+
+        --[[Custom threat situation nameplate coloring:
+           -1 = no threat data (monster not in combat).
+            0 = a non tank is tanking by threat.
+            1 = a non tank is tanking by force.
+            2 = player tanking monster by force.
+            3 = player tanking monster by threat.
+           +4 = another tank is tanking by force.
+           +5 = another tank is tanking by threat.
         ]]--
-        local _, threat, _, percent = UnitDetailedThreatSituation("player", unit)
-        if not threat then
-            percent = 0
-            if UnitAffectingCombat(unit) then
-                threat = 0
-            else
-                threat = -1
-            end
-            reaction = 100
-        else
-            reaction = 0
-        end
-        if threat > -1 then
-            if isOfftankTanking(unit) then
-                threat = 4
-            elseif playerRole ~= "TANK" then
-                threat = 3 - threat
-            end
-        end
+        local status, tank, offtank, player, nontank = threatSituation(unit)
 
-        -- compare highest group threat percentage with yours for gradient
-        if lastUpdate > 0 then
-            reaction = math.max(highestPercent(unit, nonTanks), reaction)
+        -- if CPU heavy features are enabled, compare highest group threat with tank for color gradient
+        if nextUpdate > 0 and status > -1 then
             if playerRole == "TANK" then
-                percent = math.max(highestPercent(unit, offTanks), percent)
+                if status == 0 or status == 1 then
+                    unit = math.max(offtank, player)
+                else -- you or an offtank are tanking the monster
+                    unit = nontank
+                end
             else
-                reaction = math.max(highestPercent(unit, offTanks), reaction)
+                if status == 2 or status == 3 then
+                    unit = math.max(offtank, nontank)
+                else -- someone is tanking the monster for you
+                    unit = player
+                end
             end
-            percent = math.abs(percent - reaction)
-            percent = 1 - math.min(1, percent/100)
+            if status == 1 or status == 2 or status == 4 then
+                unit = tank / math.max(unit, 1)
+            else -- monster is tanked by someone via threat
+                unit = unit / math.max(tank, 1)
+            end
+            unit = math.min(unit, 1)
         else
-            percent = 0
+            unit = 0
         end
+        if status > -1 and playerRole ~= "TANK" and status < 4 then
+            status = 3 - status
+        end -- invert colors when not a tank role and no group tanks are tanking
 
         -- only recalculate color when situation was actually changed with gradient toward sibling color
-        if not frame.threat or frame.threat.lastThreat ~= threat or frame.threat.lastPercent ~= percent then
-            local r, g, b = 0.6, 0.2, 0.8   -- magenta outside combat (colors below 4 inverted for nontanks)
+        if not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= unit then
+            local r, g, b = 0.29,0.29,0.29  -- dark outside combat (colors below 4 inverted for nontanks)
 
-            if threat >= 4 then             -- group tanks are tanking
-                r = r-(1-percent)*0.4       -- blue/magenta no problem
-                g = g+(1-percent)*0.3
-                b = b+(1-percent)*0.1
-            elseif threat >= 3 then         -- player tanking by threat
-                r, g, b = 0.0, 0.5, 0.0     -- green/yellow disengage
-                r = r + percent * 1.0
-                g = g + percent * 0.5
-                b = b + percent * 0.4
-            elseif threat >= 2 then         -- player tanking by force
-                r, g, b = 1.0, 1.0, 0.4     -- yellow/green attack soon
-                r = r - percent * 1.0
-                g = g - percent * 0.5
-                b = b - percent * 0.4
-            elseif threat >= 1 then         -- others tanking by force
-                r, g, b = 1.0, 0.5, 0.0     -- orange/red   taunt now
-                g = g - percent * 0.5
-            elseif threat >= 0 then         -- others tanking by threat
-                r, g, b = 1.0, 0.0, 0.0     -- red/orange   attack now
-                g = g + percent * 0.5
+            if status >= 5 then             -- tanks tanking by threat
+                r, g, b = 0.00, 0.85, 0.00  -- green/gray   no problem
+                r = r + unit * 0.69
+                g = g - unit * 0.16
+                b = b + unit * 0.69
+            elseif status >= 4 then         -- tanks tanking by force
+                r, g, b = 0.69, 0.69, 0.69  -- gray/green   no problem
+                r = r - unit * 0.69
+                g = g + unit * 0.16
+                b = b - unit * 0.69
+            elseif status >= 3 then         -- player tanking by threat
+                r, g, b = 0.69, 0.69, 0.69  -- gray/yellow  disengage
+                r = r + unit * 0.31
+                g = g + unit * 0.31
+                b = b - unit * 0.22
+            elseif status >= 2 then         -- player tanking by force
+                r, g, b = 1.00, 1.00, 0.47  -- yellow/gray  attack soon
+                r = r - unit * 0.31
+                g = g - unit * 0.31
+                b = b + unit * 0.22
+            elseif status >= 1 then         -- others tanking by force
+                r, g, b = 1.00, 0.60, 0.00  -- orange/red   taunt now
+                g = g - unit * 0.60
+            elseif status >= 0 then         -- others tanking by threat
+                r, g, b = 1.00, 0.00, 0.00  -- red/orange   attack now
+                g = g + unit * 0.60
             end
 
             if not frame.threat then
@@ -182,8 +197,8 @@ local function updateThreatColor(frame)
                 };
             end
 
-            frame.threat.lastThreat = threat
-            frame.threat.lastPercent = percent
+            frame.threat.lastStatus = status
+            frame.threat.lastRatio = unit
             frame.threat.color.r = r
             frame.threat.color.g = g
             frame.threat.color.b = b
@@ -203,12 +218,14 @@ myFrame:RegisterEvent("NAME_PLATE_UNIT_REMOVED");
 myFrame:RegisterEvent("PLAYER_ROLES_ASSIGNED");
 myFrame:RegisterEvent("RAID_ROSTER_UPDATE");
 myFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
+myFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
 myFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
         local callback = function()
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
                 updateThreatColor(nameplate.UnitFrame)
             end
+            thisUpdate = 0
         end
         if event ~= "PLAYER_REGEN_ENABLED" then
             callback()
@@ -229,23 +246,20 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
         if nameplate then
             resetFrame(nameplate.UnitFrame)
         end
-    elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" then
-        offTanks, nonTanks = collectOffTanks()
-    elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
-        updatePlayerRole()
+    elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
+           event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
+        offTanks, nonTanks = getGroupRoles()
+        playerRole = GetSpecializationRole(GetSpecialization())
     end
 end);
-if lastUpdate > 0 then -- one nameplate updated on every frame rendered over 45 fps
+if nextUpdate > 0 then -- one nameplate updated every x seconds (increased CPU usage)
     myFrame:SetScript("OnUpdate", function(self, elapsed)
-        local nameplate = C_NamePlate.GetNamePlates()
-        if lastUpdate < #nameplate then
-            lastUpdate = lastUpdate + 1
-        else
-            lastUpdate = 1
-        end
-        nameplate = nameplate[lastUpdate]
-        if nameplate and GetFramerate() > 45 then
-            updateThreatColor(nameplate.UnitFrame)
+        thisUpdate = thisUpdate + elapsed
+        if thisUpdate >= nextUpdate then
+            for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
+                updateThreatColor(nameplate.UnitFrame)
+            end
+            thisUpdate = 0
         end
     end);
 end -- remember "/console reloadui" for any script changes to take effect
