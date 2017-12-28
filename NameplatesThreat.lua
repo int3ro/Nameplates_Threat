@@ -80,7 +80,7 @@ local function threatSituation(monster)
             tankValue = threatValue
         elseif status and threatValue > offTankValue then
             offTankValue = threatValue
-        elseif UnitIsUnit(unit, monster .. "target") then
+        elseif threatStatus < 0 and UnitIsUnit(unit, monster .. "target") then
             threatStatus = 5 -- ensure threat status if monster is targeting a tank
         end
     end
@@ -91,6 +91,8 @@ local function threatSituation(monster)
         tankValue = threatValue
     elseif status then
         playerValue = threatValue
+    elseif threatStatus < 0 and UnitIsUnit("player", monster .. "target") then
+        threatStatus = 3 -- ensure threat status if monster is targeting player
     end
     -- store if a non-tank is tanking, or store their threat value if higher than others
     for _, unit in ipairs(nonTanks) do
@@ -100,13 +102,13 @@ local function threatSituation(monster)
             tankValue = threatValue
         elseif status and threatValue > nonTankValue then
             nonTankValue = threatValue
+        elseif threatStatus < 0 and UnitIsUnit(unit, monster .. "target") then
+            threatStatus = 0 -- ensure threat status if monster is targeting nontank
         end
     end
-    if threatStatus < 0 and UnitIsFriend("player", monster .. "target") then
-        threatStatus = 0 -- ensure threat status if monster is targeting a friend
-        tankValue    = 0
+    if threatStatus > -1 and tankValue <= 0 then
         offTankValue = 0
-        playerValue  = 0
+        playerValue  = 0 -- clear threat values if tank was found through monster target
         nonTankValue = 0
     end
     -- deliver the stored information describing threat situation for this monster
@@ -116,7 +118,8 @@ end
 local function updateThreatColor(frame)
     local unit = frame.unit -- variable also reused for the threat ratio further down
 
-    if UnitCanAttack("player", unit) and (UnitAffectingCombat(unit) or UnitReaction(unit, "player") < 4)
+    if UnitCanAttack("player", unit) -- only color monsters in combat you can attack
+        and (InCombatLockdown() or UnitIsFriend(unit .. "target", "player"))
         and not UnitIsPlayer(unit) and not CompactUnitFrame_IsTapDenied(frame) then
 
         --[[Custom threat situation nameplate coloring:
@@ -160,7 +163,7 @@ local function updateThreatColor(frame)
 
         -- only recalculate color when situation was actually changed with gradient toward sibling color
         if not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= unit then
-            local r, g, b = 0.29,0.29,0.29  -- dark outside combat (colors below 4 inverted for nontanks)
+            local r, g, b = 0.15,0.15,0.15  -- dark outside group (colors below 4 inverted for nontanks)
 
             if status >= 5 then             -- tanks tanking by threat
                 r, g, b = 0.00, 0.85, 0.00  -- green/gray   no problem
