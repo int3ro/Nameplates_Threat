@@ -34,9 +34,18 @@ hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
 local function getGroupRoles()
     local collectedTanks = {}
     local collectedOther = {}
-    local unitPrefix, unit, i, unitRole
+    local collectedPlayer, unitPrefix, unit, i, unitRole
     local isInRaid = IsInRaid()
 
+    collectedPlayer = GetSpecializationRole(GetSpecialization())
+    unit = "pet"
+    if UnitExists(unit) then
+        if collectedPlayer == "TANK" then
+            table.insert(collectedTanks, unit)
+        else
+            table.insert(collectedOther, unit)
+        end
+    end
     if isInRaid then
         unitPrefix = "raid"
     else
@@ -58,10 +67,17 @@ local function getGroupRoles()
             else
                 table.insert(collectedOther, unit)
             end
+            unit = unitPrefix .. "pet" .. i
+            if UnitExists(unit) then
+                if unitRole == "TANK" then
+                    table.insert(collectedTanks, unit)
+                else
+                    table.insert(collectedOther, unit)
+                end
+            end
         end
     end
-
-    return collectedTanks, collectedOther
+    return collectedTanks, collectedPlayer, collectedOther
 end
 
 local function threatSituation(monster)
@@ -222,6 +238,8 @@ myFrame:RegisterEvent("PLAYER_ROLES_ASSIGNED");
 myFrame:RegisterEvent("RAID_ROSTER_UPDATE");
 myFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
 myFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
+myFrame:RegisterEvent("PET_DISMISS_START");
+myFrame:RegisterEvent("UNIT_PET");
 myFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
         local callback = function()
@@ -250,9 +268,9 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
             resetFrame(nameplate.UnitFrame)
         end
     elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
-           event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
-        offTanks, nonTanks = getGroupRoles()
-        playerRole = GetSpecializationRole(GetSpecialization())
+           event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
+           event == "PET_DISMISS_START" or event == "UNIT_PET" then
+        offTanks, playerRole, nonTanks = getGroupRoles()
     end
 end);
 if nextUpdate > 0 then -- one nameplate updated every x seconds (increased CPU usage)
