@@ -38,12 +38,11 @@ local function getGroupRoles()
     local isInRaid = IsInRaid()
 
     collectedPlayer = GetSpecializationRole(GetSpecialization())
-    unit = "pet"
-    if UnitExists(unit) then
+    if UnitExists("pet") then
         if collectedPlayer == "TANK" then
-            table.insert(collectedTanks, unit)
+            table.insert(collectedTanks, "pet")
         else
-            table.insert(collectedOther, unit)
+            table.insert(collectedOther, "pet")
         end
     end
     if isInRaid then
@@ -181,7 +180,10 @@ local function updateThreatColor(frame)
         if not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= unit then
             local r, g, b = 0.15,0.15,0.15  -- dark outside group (colors below 4 inverted for nontanks)
 
-            if status >= 5 then             -- tanks tanking by threat
+            if status < 0 then              -- reset frame if monster is not fighting a group member/pet
+                resetFrame(frame)
+                return
+            elseif status >= 5 then         -- tanks tanking by threat
                 r, g, b = 0.00, 0.85, 0.00  -- green/gray   no problem
                 r = r + unit * 0.69
                 g = g - unit * 0.16
