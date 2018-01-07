@@ -1,4 +1,4 @@
-local function defaultVariables()
+local function defaultVariables()   -- only those variables seen below are used by the addon
     NPTacct = {}
     NPTacct["addonIsActive"] = true -- color by threat those nameplates you can attack
     NPTacct["ignorePlayers"] = true -- ignoring nameplates for player characters
@@ -6,13 +6,20 @@ local function defaultVariables()
     NPTacct["ignoreNoGroup"] = true -- ignoring nameplates not fighting your group
     NPTacct["gradientColor"] = true -- update nameplate color gradients (some CPU usage)
     NPTacct["gradientDelay"] = 0.2  -- update nameplate color gradients every x seconds
-    NPTacct["threatNoColor"] = {r=0.15, g=0.15, b=0.15} -- dark   target not in group fight
-    NPTacct["threat0colors"] = {r=1.00, g=0.00, b=0.00} -- red    others/you tank by threat
-    NPTacct["threat1colors"] = {r=1.00, g=0.60, b=0.00} -- orange others/you tank by force
-    NPTacct["threat2colors"] = {r=1.00, g=1.00, b=0.47} -- yellow you/others tank by force
-    NPTacct["threat3colors"] = {r=0.69, g=0.69, b=0.69} -- gray   you/others tank by threat
-    NPTacct["threat4colors"] = {r=0.69, g=0.69, b=0.69} -- gray   group tanks tank by force
-    NPTacct["threat5colors"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
+    NPTacct["nonGroupColor"] = {r=0.15, g=0.15, b=0.15} -- dark   target not in group fight
+    NPTacct["youTank5color"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
+    NPTacct["youTank4color"] = {r=0.69, g=0.69, b=0.69} -- gray   group tanks tank by force
+    NPTacct["youTank3color"] = {r=0.69, g=0.69, b=0.69} -- gray   you are tanking by threat
+    NPTacct["youTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
+    NPTacct["youTank1color"] = {r=1.00, g=0.60, b=0.00} -- orange others tanking by force
+    NPTacct["youTank0color"] = {r=1.00, g=0.00, b=0.00} -- red    others tanking by threat
+    NPTacct["nonTankReused"] = true -- reuse flipped colors above when playing as nontank
+    NPTacct["nonTank5color"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
+    NPTacct["nonTank4color"] = {r=0.69, g=0.69, b=0.69} -- gray   group tanks tank by force
+    NPTacct["nonTank3color"] = {r=0.69, g=0.69, b=0.69} -- gray   others tanking by threat
+    NPTacct["nonTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow others tanking by force
+    NPTacct["nonTank1color"] = {r=1.00, g=0.60, b=0.00} -- orange you are tanking by force
+    NPTacct["nonTank0color"] = {r=1.00, g=0.00, b=0.00} -- red    you are tanking by threat
     NPTacct["storedVersion"] = tonumber(GetAddOnMetadata("NameplatesThreat", "Version"))
 end
 
@@ -164,7 +171,7 @@ local function updateThreatColor(frame)
             3 = player tanking monster by threat.
            +4 = another tank is tanking by force.
            +5 = another tank is tanking by threat.
-        ]]--
+        ]]-- situation 0 to 3 flipped later as nontank.
         local status, tank, offtank, player, nontank = threatSituation(unit)
 
         -- compare highest group threat with tank for color gradient if enabled
@@ -193,36 +200,57 @@ local function updateThreatColor(frame)
         end
         if status > -1 and playerRole ~= "TANK" and status < 4 then
             status = 3 - status
-        end -- invert colors when not a tank role and no group tanks are tanking
+        end -- flip colors when not a tank role and no group tanks are tanking
 
         -- only recalculate color when situation was actually changed with gradient toward sibling color
         if not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= unit then
-            local color = NPTacct.threatNoColor -- dark outside group (status < 4 inverted for nontanks)
-            local other = NPTacct.threatNoColor -- we fade color toward the other if gradient is enabled
+            local color = NPTacct.nonGroupColor -- dark outside group (status < 4 inverted for nontanks)
+            local other = NPTacct.nonGroupColor -- we fade color toward the other if gradient is enabled
 
             if NPTacct.ignoreNoGroup and status < 0 then
-                resetFrame(frame)               -- reset frame if monster not fighting group member/pet
+                resetFrame(frame) -- reset frame if monster not fighting group member/pet
                 return
-            elseif status >= 5 then             -- tanks tanking via threat
-                color = NPTacct.threat5colors   -- green > gray   no problem
-                other = NPTacct.threat4colors
-            elseif status >= 4 then             -- tanks tanking via force
-                color = NPTacct.threat4colors   -- gray > green   no problem
-                other = NPTacct.threat5colors
-            elseif status >= 3 then             -- player tanking by threat
-                color = NPTacct.threat3colors   -- gray > yellow  disengage
-                other = NPTacct.threat2colors
-            elseif status >= 2 then             -- player tanking by force
-                color = NPTacct.threat2colors   -- yellow > gray  attack soon
-                other = NPTacct.threat3colors
-            elseif status >= 1 then             -- others tanking by force
-                color = NPTacct.threat1colors   -- orange > red   taunt now
-                other = NPTacct.threat0colors
-            elseif status >= 0 then             -- others tanking by threat
-                color = NPTacct.threat0colors   -- red > orange   attack now
-                other = NPTacct.threat1colors
+            elseif NPTacct.nonTankReused or playerRole == "TANK" then
+                if status >= 5 then                 -- tanks tanking via threat
+                    color = NPTacct.youTank5color   -- green > gray   no problem
+                    other = NPTacct.youTank4color
+                elseif status >= 4 then             -- tanks tanking via force
+                    color = NPTacct.youTank4color   -- gray > green   no problem
+                    other = NPTacct.youTank5color
+                elseif status >= 3 then             -- player tanking by threat
+                    color = NPTacct.youTank3color   -- gray > yellow  disengage
+                    other = NPTacct.youTank2color
+                elseif status >= 2 then             -- player tanking by force
+                    color = NPTacct.youTank2color   -- yellow > gray  attack soon
+                    other = NPTacct.youTank3color
+                elseif status >= 1 then             -- others tanking by force
+                    color = NPTacct.youTank1color   -- orange > red   taunt now
+                    other = NPTacct.youTank0color
+                elseif status >= 0 then             -- others tanking by threat
+                    color = NPTacct.youTank0color   -- red > orange   attack now
+                    other = NPTacct.youTank1color
+                end
+            else -- playing as nontank without reusing flipped tank colors
+                if status >= 5 then                 -- tanks tanking via threat
+                    color = NPTacct.nonTank5color   -- green > gray   no problem
+                    other = NPTacct.nonTank4color
+                elseif status >= 4 then             -- tanks tanking via force
+                    color = NPTacct.nonTank4color   -- gray > green   no problem
+                    other = NPTacct.nonTank5color
+                elseif status >= 3 then             -- others tanking by threat
+                    color = NPTacct.nonTank3color   -- gray > yellow  disengage
+                    other = NPTacct.nonTank2color
+                elseif status >= 2 then             -- others tanking by force
+                    color = NPTacct.nonTank2color   -- yellow > gray  attack soon
+                    other = NPTacct.nonTank3color
+                elseif status >= 1 then             -- player tanking by force
+                    color = NPTacct.nonTank1color   -- orange > red   taunt now
+                    other = NPTacct.nonTank0color
+                elseif status >= 0 then             -- player tanking by threat
+                    color = NPTacct.nonTank0color   -- red > orange   attack now
+                    other = NPTacct.nonTank1color
+                end
             end
-
             if not frame.threat then
                 frame.threat = {
                     ["color"] = {},
@@ -264,8 +292,8 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "NameplatesThreat" then
         if not NPTacct or not NPTacct.storedVersion or NPTacct.storedVersion
             ~= tonumber(GetAddOnMetadata("NameplatesThreat", "Version")) then
-            defaultVariables()
-        end -- to ensure variables are reset to default if they do not match this version
+            defaultVariables() -- reset variables if their stored version does not match
+        end
     elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
         local callback = function()
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
