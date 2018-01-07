@@ -6,6 +6,13 @@ local function defaultVariables()
     NPTacct["ignoreNoGroup"] = true -- ignoring nameplates not fighting your group
     NPTacct["gradientColor"] = true -- update nameplate color gradients (some CPU usage)
     NPTacct["gradientDelay"] = 0.2  -- update nameplate color gradients every x seconds
+    NPTacct["threatNoColor"] = {r=0.15, g=0.15, b=0.15} -- dark   target not in group fight
+    NPTacct["threat0colors"] = {r=1.00, g=0.00, b=0.00} -- red    others/you tank by threat
+    NPTacct["threat1colors"] = {r=1.00, g=0.60, b=0.00} -- orange others/you tank by force
+    NPTacct["threat2colors"] = {r=1.00, g=1.00, b=0.47} -- yellow you/others tank by force
+    NPTacct["threat3colors"] = {r=0.69, g=0.69, b=0.69} -- gray   you/others tank by threat
+    NPTacct["threat4colors"] = {r=0.69, g=0.69, b=0.69} -- gray   group tanks tank by force
+    NPTacct["threat5colors"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
     NPTacct["storedVersion"] = tonumber(GetAddOnMetadata("NameplatesThreat", "Version"))
 end
 
@@ -25,7 +32,7 @@ local function updateHealthColor(frame, ...)
     if frame.threat then
         local forceUpdate = ...
         local previousColor = frame.threat.previousColor
-        if forceUpdate
+        if forceUpdate or not previousColor
                 or previousColor.r ~= frame.healthBar.r
                 or previousColor.g ~= frame.healthBar.g
                 or previousColor.b ~= frame.healthBar.b then
@@ -190,37 +197,30 @@ local function updateThreatColor(frame)
 
         -- only recalculate color when situation was actually changed with gradient toward sibling color
         if not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= unit then
-            local r, g, b = 0.15,0.15,0.15  -- dark outside group (colors below 4 inverted for nontanks)
+            local color = NPTacct.threatNoColor -- dark outside group (status < 4 inverted for nontanks)
+            local other = NPTacct.threatNoColor -- we fade color toward the other if gradient is enabled
 
             if NPTacct.ignoreNoGroup and status < 0 then
-                resetFrame(frame)           -- reset frame if monster is not fighting a group member/pet
+                resetFrame(frame)               -- reset frame if monster not fighting group member/pet
                 return
-            elseif status >= 5 then         -- tanks tanking by threat
-                r, g, b = 0.00, 0.85, 0.00  -- green/gray   no problem
-                r = r + unit * 0.69
-                g = g - unit * 0.16
-                b = b + unit * 0.69
-            elseif status >= 4 then         -- tanks tanking by force
-                r, g, b = 0.69, 0.69, 0.69  -- gray/green   no problem
-                r = r - unit * 0.69
-                g = g + unit * 0.16
-                b = b - unit * 0.69
-            elseif status >= 3 then         -- player tanking by threat
-                r, g, b = 0.69, 0.69, 0.69  -- gray/yellow  disengage
-                r = r + unit * 0.31
-                g = g + unit * 0.31
-                b = b - unit * 0.22
-            elseif status >= 2 then         -- player tanking by force
-                r, g, b = 1.00, 1.00, 0.47  -- yellow/gray  attack soon
-                r = r - unit * 0.31
-                g = g - unit * 0.31
-                b = b + unit * 0.22
-            elseif status >= 1 then         -- others tanking by force
-                r, g, b = 1.00, 0.60, 0.00  -- orange/red   taunt now
-                g = g - unit * 0.60
-            elseif status >= 0 then         -- others tanking by threat
-                r, g, b = 1.00, 0.00, 0.00  -- red/orange   attack now
-                g = g + unit * 0.60
+            elseif status >= 5 then             -- tanks tanking via threat
+                color = NPTacct.threat5colors   -- green > gray   no problem
+                other = NPTacct.threat4colors
+            elseif status >= 4 then             -- tanks tanking via force
+                color = NPTacct.threat4colors   -- gray > green   no problem
+                other = NPTacct.threat5colors
+            elseif status >= 3 then             -- player tanking by threat
+                color = NPTacct.threat3colors   -- gray > yellow  disengage
+                other = NPTacct.threat2colors
+            elseif status >= 2 then             -- player tanking by force
+                color = NPTacct.threat2colors   -- yellow > gray  attack soon
+                other = NPTacct.threat3colors
+            elseif status >= 1 then             -- others tanking by force
+                color = NPTacct.threat1colors   -- orange > red   taunt now
+                other = NPTacct.threat0colors
+            elseif status >= 0 then             -- others tanking by threat
+                color = NPTacct.threat0colors   -- red > orange   attack now
+                other = NPTacct.threat1colors
             end
 
             if not frame.threat then
@@ -229,13 +229,18 @@ local function updateThreatColor(frame)
                     ["previousColor"] = {},
                 };
             end
-
             frame.threat.lastStatus = status
             frame.threat.lastRatio = unit
-            frame.threat.color.r = r
-            frame.threat.color.g = g
-            frame.threat.color.b = b
 
+            if NPTacct.gradientColor and unit > 0 then
+                frame.threat.color.r = color.r + (other.r - color.r) * unit
+                frame.threat.color.g = color.g + (other.g - color.g) * unit
+                frame.threat.color.b = color.b + (other.b - color.b) * unit
+            else -- skip fading color by a linear gradient toward the other
+                frame.threat.color.r = color.r
+                frame.threat.color.g = color.g
+                frame.threat.color.b = color.b
+            end
             updateHealthColor(frame, true)
         end
     else
