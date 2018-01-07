@@ -1,4 +1,14 @@
-local nextUpdate = 0.2 -- set this 0 to disable continuous nameplate updates every x seconds
+local function defaultVariables()
+    NPTacct = {}
+    NPTacct["addonIsActive"] = true -- color by threat those nameplates you can attack
+    NPTacct["ignorePlayers"] = true -- ignoring nameplates for player characters
+    NPTacct["ignoreNeutral"] = true -- ignoring nameplates for neutral monsters
+    NPTacct["ignoreNoGroup"] = true -- ignoring nameplates not fighting your group
+    NPTacct["gradientColor"] = true -- update nameplate color gradients (some CPU usage)
+    NPTacct["gradientDelay"] = 0.2  -- update nameplate color gradients every x seconds
+    NPTacct["storedVersion"] = tonumber(GetAddOnMetadata("NameplatesThreat", "Version"))
+end
+
 local thisUpdate = 0
 local playerRole = 0
 local offTanks = {}
@@ -133,9 +143,11 @@ end
 local function updateThreatColor(frame)
     local unit = frame.unit -- variable also reused for the threat ratio further down
 
-    if UnitCanAttack("player", unit) -- only color monsters in combat you can attack
-        and (InCombatLockdown() or UnitIsFriend(unit .. "target", "player"))
-        and not UnitIsPlayer(unit) and not CompactUnitFrame_IsTapDenied(frame) then
+    if NPTacct.addonIsActive -- only color nameplates you can attack if addon is active
+        and UnitCanAttack("player", unit) and not CompactUnitFrame_IsTapDenied(frame)
+        and not (NPTacct.ignorePlayers and UnitIsPlayer(unit))
+        and not (NPTacct.ignoreNeutral and UnitReaction(unit, "player") > 3 and
+                 not UnitIsFriend(unit .. "target", "player")) then
 
         --[[Custom threat situation nameplate coloring:
            -1 = no threat data (monster not in combat).
@@ -148,8 +160,8 @@ local function updateThreatColor(frame)
         ]]--
         local status, tank, offtank, player, nontank = threatSituation(unit)
 
-        -- if CPU heavy features are enabled, compare highest group threat with tank for color gradient
-        if nextUpdate > 0 and status > -1 then
+        -- compare highest group threat with tank for color gradient if enabled
+        if NPTacct.gradientColor and status > -1 then
             if playerRole == "TANK" then
                 if status == 0 or status == 1 then
                     unit = math.max(offtank, player)
@@ -180,8 +192,8 @@ local function updateThreatColor(frame)
         if not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= unit then
             local r, g, b = 0.15,0.15,0.15  -- dark outside group (colors below 4 inverted for nontanks)
 
-            if status < 0 then              -- reset frame if monster is not fighting a group member/pet
-                resetFrame(frame)
+            if NPTacct.ignoreNoGroup and status < 0 then
+                resetFrame(frame)           -- reset frame if monster is not fighting a group member/pet
                 return
             elseif status >= 5 then         -- tanks tanking by threat
                 r, g, b = 0.00, 0.85, 0.00  -- green/gray   no problem
@@ -242,8 +254,14 @@ myFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
 myFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
 myFrame:RegisterEvent("PET_DISMISS_START");
 myFrame:RegisterEvent("UNIT_PET");
+myFrame:RegisterEvent("ADDON_LOADED");
 myFrame:SetScript("OnEvent", function(self, event, arg1)
-    if event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
+    if event == "ADDON_LOADED" and arg1 == "NameplatesThreat" then
+        if not NPTacct or not NPTacct.storedVersion or NPTacct.storedVersion
+            ~= tonumber(GetAddOnMetadata("NameplatesThreat", "Version")) then
+            defaultVariables()
+        end -- to ensure variables are reset to default if they do not match this version
+    elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
         local callback = function()
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
                 updateThreatColor(nameplate.UnitFrame)
@@ -275,14 +293,14 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
         offTanks, playerRole, nonTanks = getGroupRoles()
     end
 end);
-if nextUpdate > 0 then -- one nameplate updated every x seconds (increased CPU usage)
-    myFrame:SetScript("OnUpdate", function(self, elapsed)
+myFrame:SetScript("OnUpdate", function(self, elapsed)
+    if NPTacct.gradientColor then -- one nameplate updated every x seconds (increased CPU usage)
         thisUpdate = thisUpdate + elapsed
-        if thisUpdate >= nextUpdate then
+        if thisUpdate >= NPTacct.gradientDelay then
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
                 updateThreatColor(nameplate.UnitFrame)
             end
-            thisUpdate = 0
+            thisUpdate = thisUpdate - NPTacct.gradientDelay
         end
-    end);
-end -- remember "/console reloadui" for any script changes to take effect
+    end -- remember "/console reloadui" for any script changes to take effect
+end);
