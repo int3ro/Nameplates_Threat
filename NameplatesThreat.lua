@@ -1,26 +1,35 @@
-local function defaultVariables()   -- only those variables seen below are used by the addon
-    NPTacct = {}
-    NPTacct["addonIsActive"] = true -- color by threat those nameplates you can attack
-    NPTacct["ignorePlayers"] = true -- ignoring nameplates for player characters
-    NPTacct["ignoreNeutral"] = true -- ignoring nameplates for neutral monsters
-    NPTacct["ignoreNoGroup"] = true -- ignoring nameplates not fighting your group
-    NPTacct["gradientColor"] = true -- update nameplate color gradients (some CPU usage)
-    NPTacct["gradientDelay"] = 0.2  -- update nameplate color gradients every x seconds
-    NPTacct["nonGroupColor"] = {r=0.15, g=0.15, b=0.15} -- dark   target not in group fight
-    NPTacct["youTank5color"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
-    NPTacct["youTank4color"] = {r=0.69, g=0.69, b=0.69} -- gray   group tanks tank by force
-    NPTacct["youTank3color"] = {r=0.69, g=0.69, b=0.69} -- gray   you are tanking by threat
-    NPTacct["youTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
-    NPTacct["youTank1color"] = {r=1.00, g=0.60, b=0.00} -- orange others tanking by force
-    NPTacct["youTank0color"] = {r=1.00, g=0.00, b=0.00} -- red    others tanking by threat
-    NPTacct["nonTankReused"] = true -- reuse flipped colors above when playing as nontank
-    NPTacct["nonTank5color"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
-    NPTacct["nonTank4color"] = {r=0.69, g=0.69, b=0.69} -- gray   group tanks tank by force
-    NPTacct["nonTank3color"] = {r=0.69, g=0.69, b=0.69} -- gray   others tanking by threat
-    NPTacct["nonTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow others tanking by force
-    NPTacct["nonTank1color"] = {r=1.00, g=0.60, b=0.00} -- orange you are tanking by force
-    NPTacct["nonTank0color"] = {r=1.00, g=0.00, b=0.00} -- red    you are tanking by threat
-    NPTacct["storedVersion"] = tonumber(GetAddOnMetadata("NameplatesThreat", "Version"))
+local function initVariables(oldAcct) -- only the variables below are used by the addon
+    newAcct = {}
+    newAcct["addonIsActive"] = true -- color by threat those nameplates you can attack
+    newAcct["ignorePlayers"] = true -- ignoring nameplates for player characters
+    newAcct["ignoreNeutral"] = true -- ignoring nameplates for neutral monsters
+    newAcct["ignoreNoGroup"] = true -- ignoring nameplates not fighting your group
+    newAcct["gradientColor"] = true -- update nameplate color gradients (some CPU usage)
+    newAcct["gradientDelay"] = 0.2  -- update nameplate color gradients every x seconds
+    newAcct["nonGroupColor"] = {r=0.15, g=0.15, b=0.15} -- dark   target not in group fight
+    newAcct["youTank5color"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
+    newAcct["youTank4color"] = {r=0.69, g=0.69, b=0.69} -- gray   group tanks tank by force
+    newAcct["youTank3color"] = {r=0.69, g=0.69, b=0.69} -- gray   you are tanking by threat
+    newAcct["youTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
+    newAcct["youTank1color"] = {r=1.00, g=0.60, b=0.00} -- orange others tanking by force
+    newAcct["youTank0color"] = {r=1.00, g=0.00, b=0.00} -- red    others tanking by threat
+    newAcct["nonTankReused"] = true -- reuse flipped colors above when playing as nontank
+    newAcct["nonTank5color"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
+    newAcct["nonTank4color"] = {r=0.69, g=0.69, b=0.69} -- gray   group tanks tank by force
+    newAcct["nonTank3color"] = {r=0.69, g=0.69, b=0.69} -- gray   others tanking by threat
+    newAcct["nonTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow others tanking by force
+    newAcct["nonTank1color"] = {r=1.00, g=0.60, b=0.00} -- orange you are tanking by force
+    newAcct["nonTank0color"] = {r=1.00, g=0.00, b=0.00} -- red    you are tanking by threat
+    newAcct["storedVersion"] = tonumber(GetAddOnMetadata("NameplatesThreat", "Version"))
+
+    if oldAcct then -- override defaults with imported values if old keys match new keys
+        for key in pairs(newAcct) do
+            if oldAcct[key] and key ~= "storedVersion" then
+                newAcct[key] = oldAcct[key]
+            end
+        end -- any old variables we do not recognize by their key name are discarded now
+    end
+    return newAcct
 end
 
 local thisUpdate = 0
@@ -290,10 +299,7 @@ myFrame:RegisterEvent("UNIT_PET");
 myFrame:RegisterEvent("ADDON_LOADED");
 myFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "NameplatesThreat" then
-        if not NPTacct or not NPTacct.storedVersion or NPTacct.storedVersion
-            ~= tonumber(GetAddOnMetadata("NameplatesThreat", "Version")) then
-            defaultVariables() -- reset variables if their stored version does not match
-        end
+        NPTacct = initVariables(NPTacct) -- migrate variables or reset to default
     elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
         local callback = function()
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
