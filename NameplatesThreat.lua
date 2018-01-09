@@ -7,19 +7,23 @@ local function initVariables(oldAcct) -- only the variables below are used by th
     newAcct["gradientColor"] = true -- update nameplate color gradients (some CPU usage)
     newAcct["gradientDelay"] = 0.2  -- update nameplate color gradients every x seconds
     newAcct["nonGroupColor"] = {r=0.15, g=0.15, b=0.15} -- dark   target not in group fight
+    newAcct["youTank7color"] = {r=1.00, g=0.00, b=0.00} -- red    healers tanking by threat
+    newAcct["youTank6color"] = {r=1.00, g=0.60, b=0.00} -- orange healers tanking by force
     newAcct["youTank5color"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
     newAcct["youTank4color"] = {r=0.69, g=0.69, b=0.69} -- gray   group tanks tank by force
     newAcct["youTank3color"] = {r=0.69, g=0.69, b=0.69} -- gray   you are tanking by threat
     newAcct["youTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
-    newAcct["youTank1color"] = {r=1.00, g=0.60, b=0.00} -- orange others tanking by force
-    newAcct["youTank0color"] = {r=1.00, g=0.00, b=0.00} -- red    others tanking by threat
+    newAcct["youTank1color"] = {r=1.00, g=1.00, b=0.47} -- yellow others tanking by force
+    newAcct["youTank0color"] = {r=1.00, g=0.60, b=0.00} -- orange others tanking by threat
     newAcct["nonTankReused"] = true -- reuse flipped colors above when playing as nontank
+    newAcct["nonTank7color"] = {r=1.00, g=0.00, b=0.00} -- red    healers tanking by threat
+    newAcct["nonTank6color"] = {r=1.00, g=0.60, b=0.00} -- orange healers tanking by force
     newAcct["nonTank5color"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
     newAcct["nonTank4color"] = {r=0.69, g=0.69, b=0.69} -- gray   group tanks tank by force
     newAcct["nonTank3color"] = {r=0.69, g=0.69, b=0.69} -- gray   others tanking by threat
     newAcct["nonTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow others tanking by force
-    newAcct["nonTank1color"] = {r=1.00, g=0.60, b=0.00} -- orange you are tanking by force
-    newAcct["nonTank0color"] = {r=1.00, g=0.00, b=0.00} -- red    you are tanking by threat
+    newAcct["nonTank1color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
+    newAcct["nonTank0color"] = {r=1.00, g=0.60, b=0.00} -- orange you are tanking by threat
     newAcct["storedVersion"] = tonumber(GetAddOnMetadata("NameplatesThreat", "Version"))
 
     if oldAcct then -- override defaults with imported values if old keys match new keys
@@ -36,6 +40,7 @@ local thisUpdate = 0
 local playerRole = 0
 local offTanks = {}
 local nonTanks = {}
+local offHeals = {}
 
 local function resetFrame(frame)
     if frame.threat then
@@ -67,6 +72,7 @@ hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
 local function getGroupRoles()
     local collectedTanks = {}
     local collectedOther = {}
+    local collectedHeals = {}
     local collectedPlayer, unitPrefix, unit, i, unitRole
     local isInRaid = IsInRaid()
 
@@ -74,6 +80,8 @@ local function getGroupRoles()
     if UnitExists("pet") then
         if collectedPlayer == "TANK" then
             table.insert(collectedTanks, "pet")
+        elseif unitRole == "HEALER" then
+            table.insert(collectedHeals, "pet")
         else
             table.insert(collectedOther, "pet")
         end
@@ -96,6 +104,8 @@ local function getGroupRoles()
             end
             if unitRole == "TANK" then
                 table.insert(collectedTanks, unit)
+            elseif unitRole == "HEALER" then
+                table.insert(collectedHeals, unit)
             else
                 table.insert(collectedOther, unit)
             end
@@ -103,13 +113,15 @@ local function getGroupRoles()
             if UnitExists(unit) then
                 if unitRole == "TANK" then
                     table.insert(collectedTanks, unit)
+                elseif unitRole == "HEALER" then
+                    table.insert(collectedHeals, unit)
                 else
                     table.insert(collectedOther, unit)
                 end
             end
         end
     end
-    return collectedTanks, collectedPlayer, collectedOther
+    return collectedTanks, collectedPlayer, collectedOther, collectedHeals
 end
 
 local function threatSituation(monster)
@@ -118,6 +130,7 @@ local function threatSituation(monster)
     local offTankValue =  0
     local playerValue  =  0
     local nonTankValue =  0
+    local offHealValue =  0
     local unit, isTanking, status, threatValue
 
     -- store if an offtank is tanking, or store their threat value if higher than others
@@ -154,13 +167,26 @@ local function threatSituation(monster)
             threatStatus = 0 -- ensure threat status if monster is targeting nontank
         end
     end
+    -- store if an offheal is tanking, or store their threat value if higher than others
+    for _, unit in ipairs(offHeals) do
+        isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
+        if isTanking then
+            threatStatus = status + 4
+            tankValue = threatValue
+        elseif status and threatValue > offHealValue then
+            offHealValue = threatValue
+        elseif threatStatus < 0 and UnitIsUnit(unit, monster .. "target") then
+            threatStatus = 7 -- ensure threat status if monster is targeting a healer
+        end
+    end
     if threatStatus > -1 and tankValue <= 0 then
         offTankValue = 0
         playerValue  = 0 -- clear threat values if tank was found through monster target
         nonTankValue = 0
+        offHealValue = 0
     end
     -- deliver the stored information describing threat situation for this monster
-    return threatStatus, tankValue, offTankValue, playerValue, nonTankValue
+    return threatStatus, tankValue, offTankValue, playerValue, nonTankValue, offHealValue
 end
 
 local function updateThreatColor(frame)
@@ -180,8 +206,10 @@ local function updateThreatColor(frame)
             3 = player tanking monster by threat.
            +4 = another tank is tanking by force.
            +5 = another tank is tanking by threat.
+           +6 = group healer is tanking by force.
+           +7 = group healer is tanking by threat.
         ]]-- situation 0 to 3 flipped later as nontank.
-        local status, tank, offtank, player, nontank = threatSituation(unit)
+        local status, tank, offtank, player, nontank, offheal = threatSituation(unit)
 
         -- compare highest group threat with tank for color gradient if enabled
         if NPTacct.gradientColor and status > -1 then
@@ -189,16 +217,16 @@ local function updateThreatColor(frame)
                 if status == 0 or status == 1 then
                     unit = math.max(offtank, player)
                 else -- you or an offtank are tanking the monster
-                    unit = nontank
+                    unit = math.max(nontank, offheal)
                 end
             else
                 if status == 2 or status == 3 then
-                    unit = math.max(offtank, nontank)
+                    unit = math.max(offtank, nontank, offheal)
                 else -- someone is tanking the monster for you
                     unit = player
                 end
             end
-            if status == 1 or status == 2 or status == 4 then
+            if status == 1 or status == 2 or status == 4 or status == 6 then
                 unit = tank / math.max(unit, 1)
             else -- monster is tanked by someone via threat
                 unit = unit / math.max(tank, 1)
@@ -209,56 +237,30 @@ local function updateThreatColor(frame)
         end
         if status > -1 and playerRole ~= "TANK" and status < 4 then
             status = 3 - status
-        end -- flip colors when not a tank role and no group tanks are tanking
+        end -- flip colors when not a tank role and no group tanks or healers are tanking
 
         -- only recalculate color when situation was actually changed with gradient toward sibling color
         if not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= unit then
             local color = NPTacct.nonGroupColor -- dark outside group (status < 4 inverted for nontanks)
-            local other = NPTacct.nonGroupColor -- we fade color toward the other if gradient is enabled
+            local fader = NPTacct.nonGroupColor -- we fade color toward the fader if gradient is enabled
 
-            if NPTacct.ignoreNoGroup and status < 0 then
+            if status > -1 then -- determine colors depending on threat situation odd/even
+                color = status
+                if status % 2 == 0 then
+                    fader = status + 1
+                else
+                    fader = status - 1
+                end
+                if playerRole == "TANK" or NPTacct.nonTankReused then
+                    color = NPTacct["youTank" .. color .. "color"]
+                    fader = NPTacct["youTank" .. fader .. "color"]
+                else
+                    color = NPTacct["nonTank" .. color .. "color"]
+                    fader = NPTacct["nonTank" .. fader .. "color"]
+                end
+            elseif NPTacct.ignoreNoGroup then
                 resetFrame(frame) -- reset frame if monster not fighting group member/pet
                 return
-            elseif NPTacct.nonTankReused or playerRole == "TANK" then
-                if status >= 5 then                 -- tanks tanking via threat
-                    color = NPTacct.youTank5color   -- green > gray   no problem
-                    other = NPTacct.youTank4color
-                elseif status >= 4 then             -- tanks tanking via force
-                    color = NPTacct.youTank4color   -- gray > green   no problem
-                    other = NPTacct.youTank5color
-                elseif status >= 3 then             -- player tanking by threat
-                    color = NPTacct.youTank3color   -- gray > yellow  disengage
-                    other = NPTacct.youTank2color
-                elseif status >= 2 then             -- player tanking by force
-                    color = NPTacct.youTank2color   -- yellow > gray  attack soon
-                    other = NPTacct.youTank3color
-                elseif status >= 1 then             -- others tanking by force
-                    color = NPTacct.youTank1color   -- orange > red   taunt now
-                    other = NPTacct.youTank0color
-                elseif status >= 0 then             -- others tanking by threat
-                    color = NPTacct.youTank0color   -- red > orange   attack now
-                    other = NPTacct.youTank1color
-                end
-            else -- playing as nontank without reusing flipped tank colors
-                if status >= 5 then                 -- tanks tanking via threat
-                    color = NPTacct.nonTank5color   -- green > gray   no problem
-                    other = NPTacct.nonTank4color
-                elseif status >= 4 then             -- tanks tanking via force
-                    color = NPTacct.nonTank4color   -- gray > green   no problem
-                    other = NPTacct.nonTank5color
-                elseif status >= 3 then             -- others tanking by threat
-                    color = NPTacct.nonTank3color   -- gray > yellow  disengage
-                    other = NPTacct.nonTank2color
-                elseif status >= 2 then             -- others tanking by force
-                    color = NPTacct.nonTank2color   -- yellow > gray  attack soon
-                    other = NPTacct.nonTank3color
-                elseif status >= 1 then             -- player tanking by force
-                    color = NPTacct.nonTank1color   -- orange > red   taunt now
-                    other = NPTacct.nonTank0color
-                elseif status >= 0 then             -- player tanking by threat
-                    color = NPTacct.nonTank0color   -- red > orange   attack now
-                    other = NPTacct.nonTank1color
-                end
             end
             if not frame.threat then
                 frame.threat = {
@@ -270,10 +272,10 @@ local function updateThreatColor(frame)
             frame.threat.lastRatio = unit
 
             if NPTacct.gradientColor and unit > 0 then
-                frame.threat.color.r = color.r + (other.r - color.r) * unit
-                frame.threat.color.g = color.g + (other.g - color.g) * unit
-                frame.threat.color.b = color.b + (other.b - color.b) * unit
-            else -- skip fading color by a linear gradient toward the other
+                frame.threat.color.r = color.r + (fader.r - color.r) * unit
+                frame.threat.color.g = color.g + (fader.g - color.g) * unit
+                frame.threat.color.b = color.b + (fader.b - color.b) * unit
+            else -- skip fading color by a linear gradient toward the fader
                 frame.threat.color.r = color.r
                 frame.threat.color.g = color.g
                 frame.threat.color.b = color.b
@@ -329,7 +331,7 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
     elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
            event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
            event == "PET_DISMISS_START" or event == "UNIT_PET" then
-        offTanks, playerRole, nonTanks = getGroupRoles()
+        offTanks, playerRole, nonTanks, offHeals = getGroupRoles()
     end
 end);
 myFrame:SetScript("OnUpdate", function(self, elapsed)
