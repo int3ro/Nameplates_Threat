@@ -24,11 +24,12 @@ local function initVariables(oldAcct) -- only the variables below are used by th
     newAcct["nonTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow others tanking by force
     newAcct["nonTank1color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
     newAcct["nonTank0color"] = {r=1.00, g=0.60, b=0.00} -- orange you are tanking by threat
-    newAcct["storedVersion"] = tonumber(GetAddOnMetadata("NameplatesThreat", "Version"))
+    newAcct["forcingReused"] = true -- reuse tanking by threat colors when tanking by force
+    newAcct["addonsVersion"] = tonumber(GetAddOnMetadata("NameplatesThreat", "Version"))
 
     if oldAcct then -- override defaults with imported values if old keys match new keys
         for key in pairs(newAcct) do
-            if oldAcct[key] and key ~= "storedVersion" then
+            if oldAcct[key] and key ~= "addonsVersion" then
                 newAcct[key] = oldAcct[key]
             end
         end -- any old variables we do not recognize by their key name are discarded now
@@ -250,6 +251,21 @@ local function updateThreatColor(frame)
                     fader = status + 1
                 else
                     fader = status - 1
+                end
+                if NPTacct.forcingReused then -- reuse threat tanking colors or forced fader/color 1
+                    if status >= 7 then
+                        fader = 0
+                    elseif status >= 6 then
+                        color = 0
+                    elseif status >= 5 then
+                        fader = 3
+                    elseif status >= 4 then
+                        color = 3
+                    elseif status >= 3 then
+                        fader = 1
+                    elseif status >= 2 then
+                        color = 1
+                    end
                 end
                 if playerRole == "TANK" or NPTacct.nonTankReused then
                     color = NPTacct["youTank" .. color .. "color"]
