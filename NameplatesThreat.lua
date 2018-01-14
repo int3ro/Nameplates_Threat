@@ -25,7 +25,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
     newAcct["nonTank1color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
     newAcct["nonTank0color"] = {r=1.00, g=0.60, b=0.00} -- orange you are tanking by threat
     newAcct["forcingReused"] = true -- reuse tanking by threat colors when tanking by force
-    newAcct["addonsVersion"] = tonumber(GetAddOnMetadata("NameplatesThreat", "Version"))
+    newAcct["addonsVersion"] = tonumber(GetAddOnMetadata("NamePlatesThreat", "Version"))
 
     if oldAcct then -- override defaults with imported values if old keys match new keys
         for key in pairs(newAcct) do
@@ -317,7 +317,7 @@ NPT:RegisterEvent("PET_DISMISS_START");
 NPT:RegisterEvent("UNIT_PET");
 NPT:RegisterEvent("ADDON_LOADED");
 NPT:SetScript("OnEvent", function(self, event, arg1)
-    if event == "ADDON_LOADED" and arg1 == "NameplatesThreat" then
+    if event == "ADDON_LOADED" and arg1 == "NamePlatesThreat" then
         NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
         NPTframe:init()
     elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
@@ -327,7 +327,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
             end
             NPT.thisUpdate = 0
         end
-        if event ~= "PLAYER_REGEN_ENABLED" then
+        if event == "UNIT_THREAT_SITUATION_UPDATE" then
             callback()
         else
             C_Timer.NewTimer(5.0, callback)
@@ -350,6 +350,9 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
            event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
            event == "PET_DISMISS_START" or event == "UNIT_PET" then
         NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
+        if event == "PLAYER_ENTERING_WORLD" then
+            InterfaceOptionsFrame_OpenToCategory(NPTframe) -- for debugging only
+        end
     end
 end);
 NPT:SetScript("OnUpdate", function(self, elapsed)
@@ -365,43 +368,44 @@ NPT:SetScript("OnUpdate", function(self, elapsed)
 end);
 function NPTframe.okay()
     NPTacct = initVariables(NPT.acct) -- store panel fields into addon variables
-    self.refresh()
+    NPTframe:refresh()
 end
 function NPTframe.cancel()
     NPT.acct = initVariables(NPTacct) -- restore panel fields from addon variables
 end
 function NPTframe.default()
     NPTacct = initVariables()
-    self.cancel()
+    NPTframe:cancel()
 end
 function NPTframe.refresh() -- called on panel shown or after default was accepted
-    -- print(GetServerTime() .. " NPTframe.refresh()") -- for debugging only
+    NPT:GetScript("OnEvent")(NPT, "PLAYER_ENTERING_WORLD")
+    NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
+    print(GetServerTime() .. " NPTframe.refresh()") -- for debugging only
 end
 
 function NPTframe:init()
-    self.cancel() -- simulate options cancel so panel variables are reset
-    self.name = GetAddOnMetadata("NameplatesThreat", "Title")
+    NPTframe:cancel() -- simulate options cancel so panel variables are reset
+    NPTframe.name = GetAddOnMetadata("NamePlatesThreat", "Title")
 
-    self.bigTitle = self:CreateFontString(nil, nil, "GameFontNormalLarge")
-    self.bigTitle:ClearAllPoints()
-    self.bigTitle:SetPoint("TOPLEFT",      16, -16)
-    self.bigTitle:SetPoint("BOTTOMRIGHT", -16, 538)
-    self.bigTitle:SetWidth(0)
-    self.bigTitle:SetHeight(0)
-    self.bigTitle:SetJustifyH("LEFT")
-    self.bigTitle:SetWordWrap(true)
-    self.bigTitle:SetText(self.name .. " " .. NPTacct.addonsVersion .. " by " .. GetAddOnMetadata("NameplatesThreat", "Author"))
+    NPTframe.bigTitle = NPTframe:CreateFontString(nil, nil, "GameFontNormalLarge")
+    NPTframe.bigTitle:ClearAllPoints()
+    NPTframe.bigTitle:SetPoint("TOPLEFT",      16, -16)
+    NPTframe.bigTitle:SetPoint("BOTTOMRIGHT", -16, 538)
+    NPTframe.bigTitle:SetWidth(0)
+    NPTframe.bigTitle:SetHeight(0)
+    NPTframe.bigTitle:SetJustifyH("LEFT")
+    NPTframe.bigTitle:SetWordWrap(true)
+    NPTframe.bigTitle:SetText(NPTframe.name .. " " .. NPTacct.addonsVersion .. " by " .. GetAddOnMetadata("NamePlatesThreat", "Author"))
 
-    self.subTitle = self:CreateFontString(nil, nil, "GameFontHighlightSmall")
-    self.subTitle:ClearAllPoints()
-    self.subTitle:SetPoint("TOPLEFT",      16, -40)
-    self.subTitle:SetPoint("BOTTOMRIGHT", -16, 508)
-    self.subTitle:SetWidth(0)
-    self.subTitle:SetHeight(0)
-    self.subTitle:SetJustifyH("LEFT")
-    self.subTitle:SetWordWrap(true)
-    self.subTitle:SetText(GetAddOnMetadata("NameplatesThreat", "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
+    NPTframe.subTitle = NPTframe:CreateFontString(nil, nil, "GameFontHighlightSmall")
+    NPTframe.subTitle:ClearAllPoints()
+    NPTframe.subTitle:SetPoint("TOPLEFT",      16, -40)
+    NPTframe.subTitle:SetPoint("BOTTOMRIGHT", -16, 508)
+    NPTframe.subTitle:SetWidth(0)
+    NPTframe.subTitle:SetHeight(0)
+    NPTframe.subTitle:SetJustifyH("LEFT")
+    NPTframe.subTitle:SetWordWrap(true)
+    NPTframe.subTitle:SetText(GetAddOnMetadata("NamePlatesThreat", "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
 
-    InterfaceOptions_AddCategory(self)
-    -- InterfaceOptionsFrame_OpenToCategory(NPTframe) -- for debugging only
+    InterfaceOptions_AddCategory(NPTframe)
 end
