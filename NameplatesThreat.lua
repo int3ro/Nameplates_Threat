@@ -37,11 +37,13 @@ local function initVariables(oldAcct) -- only the variables below are used by th
     return newAcct
 end
 
-local thisUpdate = 0
-local playerRole = 0
-local offTanks = {}
-local nonTanks = {}
-local offHeals = {}
+local NPT = CreateFrame("Frame", nil, UIParent) -- invisible frame handling addon logic
+NPT.thisUpdate = 0
+NPT.playerRole = 0
+NPT.offTanks = {}
+NPT.nonTanks = {}
+NPT.offHeals = {}
+local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking the addon
 
 local function resetFrame(frame)
     if frame.threat then
@@ -67,9 +69,6 @@ local function updateHealthColor(frame, ...)
     end
 end
 
--- This function is called constantly during combat. The color is only going to be reset after it was actually changed.
-hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
-
 local function getGroupRoles()
     local collectedTanks = {}
     local collectedOther = {}
@@ -81,7 +80,7 @@ local function getGroupRoles()
     if UnitExists("pet") then
         if collectedPlayer == "TANK" then
             table.insert(collectedTanks, "pet")
-        elseif unitRole == "HEALER" then
+        elseif collectedPlayer == "HEALER" then
             table.insert(collectedHeals, "pet")
         else
             table.insert(collectedOther, "pet")
@@ -135,7 +134,7 @@ local function threatSituation(monster)
     local unit, isTanking, status, threatValue
 
     -- store if an offtank is tanking, or store their threat value if higher than others
-    for _, unit in ipairs(offTanks) do
+    for _, unit in ipairs(NPT.offTanks) do
         isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
         if isTanking then
             threatStatus = status + 2
@@ -157,7 +156,7 @@ local function threatSituation(monster)
         threatStatus = 3 -- ensure threat status if monster is targeting player
     end
     -- store if a non-tank is tanking, or store their threat value if higher than others
-    for _, unit in ipairs(nonTanks) do
+    for _, unit in ipairs(NPT.nonTanks) do
         isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
         if isTanking then
             threatStatus = 3 - status
@@ -169,7 +168,7 @@ local function threatSituation(monster)
         end
     end
     -- store if an offheal is tanking, or store their threat value if higher than others
-    for _, unit in ipairs(offHeals) do
+    for _, unit in ipairs(NPT.offHeals) do
         isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
         if isTanking then
             threatStatus = status + 4
@@ -214,7 +213,7 @@ local function updateThreatColor(frame)
 
         -- compare highest group threat with tank for color gradient if enabled
         if NPTacct.gradientColor and status > -1 then
-            if playerRole == "TANK" then
+            if NPT.playerRole == "TANK" then
                 if status == 0 or status == 1 then
                     unit = math.max(offtank, player)
                 else -- you or an offtank are tanking the monster
@@ -236,7 +235,7 @@ local function updateThreatColor(frame)
         else
             unit = 0
         end
-        if status > -1 and playerRole ~= "TANK" and status < 4 then
+        if status > -1 and NPT.playerRole ~= "TANK" and status < 4 then
             status = 3 - status
         end -- flip colors when not a tank role and no group tanks or healers are tanking
 
@@ -267,7 +266,7 @@ local function updateThreatColor(frame)
                         color = 1
                     end
                 end
-                if playerRole == "TANK" or NPTacct.nonTankReused then
+                if NPT.playerRole == "TANK" or NPTacct.nonTankReused then
                     color = NPTacct["youTank" .. color .. "color"]
                     fader = NPTacct["youTank" .. fader .. "color"]
                 else
@@ -303,27 +302,30 @@ local function updateThreatColor(frame)
     end
 end
 
-local myFrame = CreateFrame("frame")
-myFrame:RegisterEvent("PLAYER_REGEN_ENABLED");
-myFrame:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE");
-myFrame:RegisterEvent("NAME_PLATE_UNIT_ADDED");
-myFrame:RegisterEvent("NAME_PLATE_UNIT_REMOVED");
-myFrame:RegisterEvent("PLAYER_ROLES_ASSIGNED");
-myFrame:RegisterEvent("RAID_ROSTER_UPDATE");
-myFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
-myFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
-myFrame:RegisterEvent("PET_DISMISS_START");
-myFrame:RegisterEvent("UNIT_PET");
-myFrame:RegisterEvent("ADDON_LOADED");
-myFrame:SetScript("OnEvent", function(self, event, arg1)
+-- The color is only going to be reset after it was actually changed.
+hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
+
+NPT:RegisterEvent("PLAYER_REGEN_ENABLED");
+NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE");
+NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED");
+NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED");
+NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED");
+NPT:RegisterEvent("RAID_ROSTER_UPDATE");
+NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
+NPT:RegisterEvent("PLAYER_ENTERING_WORLD");
+NPT:RegisterEvent("PET_DISMISS_START");
+NPT:RegisterEvent("UNIT_PET");
+NPT:RegisterEvent("ADDON_LOADED");
+NPT:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "NameplatesThreat" then
-        NPTacct = initVariables(NPTacct) -- migrate variables or reset to default
+        NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
+        NPTframe:init()
     elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
         local callback = function()
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
                 updateThreatColor(nameplate.UnitFrame)
             end
-            thisUpdate = 0
+            NPT.thisUpdate = 0
         end
         if event ~= "PLAYER_REGEN_ENABLED" then
             callback()
@@ -347,17 +349,59 @@ myFrame:SetScript("OnEvent", function(self, event, arg1)
     elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
            event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
            event == "PET_DISMISS_START" or event == "UNIT_PET" then
-        offTanks, playerRole, nonTanks, offHeals = getGroupRoles()
+        NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
     end
 end);
-myFrame:SetScript("OnUpdate", function(self, elapsed)
-    if NPTacct.gradientColor then -- one nameplate updated every x seconds (increased CPU usage)
-        thisUpdate = thisUpdate + elapsed
-        if thisUpdate >= NPTacct.gradientDelay then
+NPT:SetScript("OnUpdate", function(self, elapsed)
+    if NPTacct.addonIsActive and NPTacct.gradientColor then
+        NPT.thisUpdate = NPT.thisUpdate + elapsed
+        if NPT.thisUpdate >= NPTacct.gradientDelay then
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
                 updateThreatColor(nameplate.UnitFrame)
             end
-            thisUpdate = thisUpdate - NPTacct.gradientDelay
+            NPT.thisUpdate = NPT.thisUpdate - NPTacct.gradientDelay
         end
     end -- remember "/console reloadui" for any script changes to take effect
 end);
+function NPTframe.okay()
+    NPTacct = initVariables(NPT.acct) -- store panel fields into addon variables
+    self.refresh()
+end
+function NPTframe.cancel()
+    NPT.acct = initVariables(NPTacct) -- restore panel fields from addon variables
+end
+function NPTframe.default()
+    NPTacct = initVariables()
+    self.cancel()
+end
+function NPTframe.refresh() -- called on panel shown or after default was accepted
+    -- print(GetServerTime() .. " NPTframe.refresh()") -- for debugging only
+end
+
+function NPTframe:init()
+    self.cancel() -- simulate options cancel so panel variables are reset
+    self.name = GetAddOnMetadata("NameplatesThreat", "Title")
+
+    self.bigTitle = self:CreateFontString(nil, nil, "GameFontNormalLarge")
+    self.bigTitle:ClearAllPoints()
+    self.bigTitle:SetPoint("TOPLEFT",      16, -16)
+    self.bigTitle:SetPoint("BOTTOMRIGHT", -16, 538)
+    self.bigTitle:SetWidth(0)
+    self.bigTitle:SetHeight(0)
+    self.bigTitle:SetJustifyH("LEFT")
+    self.bigTitle:SetWordWrap(true)
+    self.bigTitle:SetText(self.name .. " " .. NPTacct.addonsVersion .. " by " .. GetAddOnMetadata("NameplatesThreat", "Author"))
+
+    self.subTitle = self:CreateFontString(nil, nil, "GameFontHighlightSmall")
+    self.subTitle:ClearAllPoints()
+    self.subTitle:SetPoint("TOPLEFT",      16, -40)
+    self.subTitle:SetPoint("BOTTOMRIGHT", -16, 508)
+    self.subTitle:SetWidth(0)
+    self.subTitle:SetHeight(0)
+    self.subTitle:SetJustifyH("LEFT")
+    self.subTitle:SetWordWrap(true)
+    self.subTitle:SetText(GetAddOnMetadata("NameplatesThreat", "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
+
+    InterfaceOptions_AddCategory(self)
+    -- InterfaceOptionsFrame_OpenToCategory(NPTframe) -- for debugging only
+end
