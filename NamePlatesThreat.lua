@@ -359,10 +359,7 @@ NPT:SetScript("OnUpdate", function(self, elapsed)
     if NPTacct.addonIsActive and NPTacct.gradientColor then
         NPT.thisUpdate = NPT.thisUpdate + elapsed
         if NPT.thisUpdate >= NPTacct.gradientDelay then
-            for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
-                updateThreatColor(nameplate.UnitFrame)
-            end
-            NPT.thisUpdate = NPT.thisUpdate - NPTacct.gradientDelay
+            NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
         end
     end -- remember "/console reloadui" for any script changes to take effect
 end);
@@ -380,32 +377,70 @@ end
 function NPTframe.refresh() -- called on panel shown or after default was accepted
     NPT:GetScript("OnEvent")(NPT, "PLAYER_ENTERING_WORLD")
     NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
-    print(GetServerTime() .. " NPTframe.refresh()") -- for debugging only
+    print(GetServerTime() .. " NPTframe.refresh() " .. NPTframe:GetWidth()) -- for debugging only
 end
 
 function NPTframe:init()
     NPTframe:cancel() -- simulate options cancel so panel variables are reset
     NPTframe.name = GetAddOnMetadata("NamePlatesThreat", "Title")
+    -- CheckButton starts 14 right -93.3 down with -34 for each below it (label starts 42 right -92.3 down)
+    -- CheckButton child is 24 right with -22 down from the one above it (label is 52 right and small font)
 
-    NPTframe.bigTitle = NPTframe:CreateFontString(nil, nil, "GameFontNormalLarge")
-    NPTframe.bigTitle:ClearAllPoints()
-    NPTframe.bigTitle:SetPoint("TOPLEFT",      16, -16)
-    NPTframe.bigTitle:SetPoint("BOTTOMRIGHT", -16, 538)
-    NPTframe.bigTitle:SetWidth(0)
-    NPTframe.bigTitle:SetHeight(0)
+    NPTframe.bigTitle = NPTframe:CreateFontString("bigTitle", "ARTWORK", "GameFontNormalLarge")
+    NPTframe.bigTitle:SetPoint("LEFT", NPTframe, "TOPLEFT", 16, -24)
+    NPTframe.bigTitle:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16, -24)
     NPTframe.bigTitle:SetJustifyH("LEFT")
-    NPTframe.bigTitle:SetWordWrap(true)
     NPTframe.bigTitle:SetText(NPTframe.name .. " " .. NPTacct.addonsVersion .. " by " .. GetAddOnMetadata("NamePlatesThreat", "Author"))
 
-    NPTframe.subTitle = NPTframe:CreateFontString(nil, nil, "GameFontHighlightSmall")
-    NPTframe.subTitle:ClearAllPoints()
-    NPTframe.subTitle:SetPoint("TOPLEFT",      16, -40)
-    NPTframe.subTitle:SetPoint("BOTTOMRIGHT", -16, 508)
-    NPTframe.subTitle:SetWidth(0)
-    NPTframe.subTitle:SetHeight(0)
+    NPTframe.subTitle = NPTframe:CreateFontString("subTitle", "ARTWORK", "GameFontHighlightSmall")
+    NPTframe.subTitle:SetPoint("LEFT", NPTframe, "TOPLEFT", 16, -48)
+    NPTframe.subTitle:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16, -48)
     NPTframe.subTitle:SetJustifyH("LEFT")
-    NPTframe.subTitle:SetWordWrap(true)
     NPTframe.subTitle:SetText(GetAddOnMetadata("NamePlatesThreat", "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
+
+    NPTframe.addonIsActive = CreateFrame("CheckButton", "addonIsActive", NPTframe, "InterfaceOptionsCheckButtonTemplate")
+    NPTframe.addonIsActive:SetPoint("LEFT", NPTframe, "TOPLEFT", 14, -93.3)
+    NPTframe.addonIsActive.label = _G[NPTframe.addonIsActive:GetName() .. "Text"]
+    NPTframe.addonIsActive.label:SetPoint("LEFT", NPTframe, "TOPLEFT", 42, -92.3)
+    NPTframe.addonIsActive.label:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16-623/2, -92.3)
+    NPTframe.addonIsActive.label:SetJustifyH("LEFT")
+    NPTframe.addonIsActive.label:SetText("Color Non-friendly Nameplates by Threat")
+
+    NPTframe.ignorePlayers = CreateFrame("CheckButton", "ignorePlayers", NPTframe, "InterfaceOptionsCheckButtonTemplate")
+    NPTframe.ignorePlayers:SetPoint("LEFT", NPTframe, "TOPLEFT", 24, -115.3)
+    NPTframe.ignorePlayers.label = _G[NPTframe.ignorePlayers:GetName() .. "Text"]
+    NPTframe.ignorePlayers.label:SetPoint("LEFT", NPTframe, "TOPLEFT", 52, -114.3)
+    NPTframe.ignorePlayers.label:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16-623/2, -114.3)
+    NPTframe.ignorePlayers.label:SetJustifyH("LEFT")
+    NPTframe.ignorePlayers.label:SetText("Ignore Player Characters")
+    NPTframe.ignorePlayers.label:SetFontObject("GameFontHighlightSmall")
+
+    NPTframe.ignoreNeutral = CreateFrame("CheckButton", "ignoreNeutral", NPTframe, "InterfaceOptionsCheckButtonTemplate")
+    NPTframe.ignoreNeutral:SetPoint("LEFT", NPTframe, "TOPLEFT", 24, -137.3)
+    NPTframe.ignoreNeutral.label = _G[NPTframe.ignoreNeutral:GetName() .. "Text"]
+    NPTframe.ignoreNeutral.label:SetPoint("LEFT", NPTframe, "TOPLEFT", 52, -136.3)
+    NPTframe.ignoreNeutral.label:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16-623/2, -136.3)
+    NPTframe.ignoreNeutral.label:SetJustifyH("LEFT")
+    NPTframe.ignoreNeutral.label:SetText("Ignore Neutral Targets")
+    NPTframe.ignoreNeutral.label:SetFontObject("GameFontHighlightSmall")
+
+    NPTframe.ignoreNoGroup = CreateFrame("CheckButton", "ignoreNoGroup", NPTframe, "InterfaceOptionsCheckButtonTemplate")
+    NPTframe.ignoreNoGroup:SetPoint("LEFT", NPTframe, "TOPLEFT", 24, -159.3)
+    NPTframe.ignoreNoGroup.label = _G[NPTframe.ignoreNoGroup:GetName() .. "Text"]
+    NPTframe.ignoreNoGroup.label:SetPoint("LEFT", NPTframe, "TOPLEFT", 52, -158.3)
+    NPTframe.ignoreNoGroup.label:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16-623/2, -158.3)
+    NPTframe.ignoreNoGroup.label:SetJustifyH("LEFT")
+    NPTframe.ignoreNoGroup.label:SetText("Ignore Targets not Fighting your Group")
+    NPTframe.ignoreNoGroup.label:SetFontObject("GameFontHighlightSmall")
+
+    NPTframe.gradientColor = CreateFrame("CheckButton", "gradientColor", NPTframe, "InterfaceOptionsCheckButtonTemplate")
+    NPTframe.gradientColor:SetPoint("LEFT", NPTframe, "TOPLEFT", 14, -195.3)
+    NPTframe.gradientColor.label = _G[NPTframe.gradientColor:GetName() .. "Text"]
+    NPTframe.gradientColor.label:SetPoint("LEFT", NPTframe, "TOPLEFT", 42, -194.3)
+    NPTframe.gradientColor.label:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16-623/2, -194.3)
+    NPTframe.gradientColor.label:SetJustifyH("LEFT")
+    NPTframe.gradientColor.label:SetWordWrap(true)
+    NPTframe.gradientColor.label:SetText("Color Gradient Delay in Seconds bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla")
 
     InterfaceOptions_AddCategory(NPTframe)
 end
