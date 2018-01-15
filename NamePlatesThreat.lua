@@ -15,7 +15,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
     newAcct["youTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
     newAcct["youTank1color"] = {r=1.00, g=1.00, b=0.47} -- yellow others tanking by force
     newAcct["youTank0color"] = {r=1.00, g=0.60, b=0.00} -- orange others tanking by threat
-    newAcct["nonTankReused"] = true -- reuse flipped colors above when playing as nontank
+    newAcct["nonTankUnique"] = true -- unique nontank colors instead of flip colors above
     newAcct["nonTank7color"] = {r=1.00, g=0.00, b=0.00} -- red    healers tanking by threat
     newAcct["nonTank6color"] = {r=1.00, g=0.60, b=0.00} -- orange healers tanking by force
     newAcct["nonTank5color"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
@@ -24,7 +24,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
     newAcct["nonTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow others tanking by force
     newAcct["nonTank1color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
     newAcct["nonTank0color"] = {r=1.00, g=0.60, b=0.00} -- orange you are tanking by threat
-    newAcct["forcingReused"] = true -- reuse tanking by threat colors when tanking by force
+    newAcct["forcingUnique"] = true -- unique force colors instead of reuse threat colors
     newAcct["addonsVersion"] = tonumber(GetAddOnMetadata("NamePlatesThreat", "Version"))
 
     if oldAcct then -- override defaults with imported values if old keys match new keys
@@ -251,8 +251,10 @@ local function updateThreatColor(frame)
                 else
                     fader = status - 1
                 end
-                if NPTacct.forcingReused then -- reuse threat tanking colors or forced fader/color 1
-                    if status >= 7 then
+                if not NPTacct.forcingUnique then -- reuse threat tanking colors or forced fader/color 1
+                    if status == 1 then
+                        color = 2
+                    elseif status >= 7 then
                         fader = 0
                     elseif status >= 6 then
                         color = 0
@@ -261,12 +263,10 @@ local function updateThreatColor(frame)
                     elseif status >= 4 then
                         color = 3
                     elseif status >= 3 then
-                        fader = 1
-                    elseif status >= 2 then
-                        color = 1
+                        fader = 2
                     end
                 end
-                if NPT.playerRole == "TANK" or NPTacct.nonTankReused then
+                if NPT.playerRole == "TANK" or not NPTacct.nonTankUnique then
                     color = NPTacct["youTank" .. color .. "color"]
                     fader = NPTacct["youTank" .. fader .. "color"]
                 else
@@ -377,14 +377,12 @@ end
 function NPTframe.refresh() -- called on panel shown or after default was accepted
     NPT:GetScript("OnEvent")(NPT, "PLAYER_ENTERING_WORLD")
     NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
-    print(GetServerTime() .. " NPTframe.refresh() " .. NPTframe:GetWidth()) -- for debugging only
+    -- print(GetServerTime() .. " NPTframe.refresh() " .. NPTframe:GetWidth()) -- for debugging only
 end
 
 function NPTframe:Init()
     NPTframe:cancel() -- simulate options cancel so panel variables are reset
     NPTframe.name = GetAddOnMetadata("NamePlatesThreat", "Title")
-    -- CheckButton starts 14 right -93.3 down with -34 for each below it (label starts 42 right -92.3 down)
-    -- CheckButton child is 24 right with -22 down from the one above it (label is 52 right and small font)
 
     NPTframe.bigTitle = NPTframe:CreateFontString("bigTitle", "ARTWORK", "GameFontNormalLarge")
     NPTframe.bigTitle:SetPoint("LEFT", NPTframe, "TOPLEFT", 16, -24)
@@ -401,27 +399,42 @@ function NPTframe:Init()
     NPTframe.subTitle:SetHeight(NPTframe.subTitle:GetStringHeight() * 2)
 
     NPTframe.addonIsActive = NPTframe:CreateCheckButton("addonIsActive", "Color Non-Friendly Nameplates", 1)
-
     NPTframe.ignorePlayers = NPTframe:CreateCheckButton("ignorePlayers", "Ignore Player Characters", 1, 1)
-
     NPTframe.ignoreNeutral = NPTframe:CreateCheckButton("ignoreNeutral", "Ignore Neutral Targets", 1, 2)
-
     NPTframe.ignoreNoGroup = NPTframe:CreateCheckButton("ignoreNoGroup", "Ignore Out of Combat", 1, 3)
 
-    NPTframe.nonTankReused = NPTframe:CreateCheckButton("nonTankReused", "Reuse Tank Role Colors in Non-Tank Role", 1, 0, true)
-
-    NPTframe.forcingReused = NPTframe:CreateCheckButton("forcingReused", "Reuse High Threat Colors for Low Threat", 2, 0, true)
-
-    NPTframe.gradientColor, NPTframe.gradientDelay = NPTframe:CreateCheckSlider("gradientColor", "Color Gradient Delay in Seconds", "gradientDelay", 0, 1, 3, true)
+    NPTframe.gradientColor, NPTframe.gradientDelay = NPTframe:CreateCheckSlider("gradientColor", "Color Gradient Delay in Seconds", "gradientDelay", 0, 1, 2, true)
     
-    NPTframe.nonGroupColor = NPTframe:CreateColorSwatch("nonGroupColor", "Target is Out of Combat", 4)
+    NPTframe.nonGroupColor = NPTframe:CreateColorSwatch("nonGroupColor", "Target is Out of Combat", 4, 0)
+    NPTframe.youTank7color = NPTframe:CreateColorSwatch("youTank7color", "Healers have High Threat", 4, 1)
+    NPTframe.youTank0color = NPTframe:CreateColorSwatch("youTank0color", "Damage has High Threat", 4, 2)
+    NPTframe.youTank2color = NPTframe:CreateColorSwatch("youTank2color", "You have the Low Threat", 4, 3)
+    NPTframe.youTank3color = NPTframe:CreateColorSwatch("youTank3color", "You have the High Threat", 4, 4)
+    NPTframe.youTank5color = NPTframe:CreateColorSwatch("youTank5color", "Tanks have High Threat", 4, 5)
+
+    NPTframe.forcingUnique = NPTframe:CreateCheckButton("forcingUnique", "Unique Colors Forced Tanking", 8)
+    NPTframe.youTank6color = NPTframe:CreateColorSwatch("youTank6color", "Healers have Low Threat", 8, 1)
+    NPTframe.youTank1color = NPTframe:CreateColorSwatch("youTank1color", "Damage has Low Threat", 8, 2)
+    NPTframe.youTank4color = NPTframe:CreateColorSwatch("youTank4color", "Tanks have Low Threat", 8, 3)
+
+    NPTframe.nonTankUnique = NPTframe:CreateCheckButton("nonTankUnique", "Unique Colors as Non-Tank Role", 4, nil, true)
+    NPTframe.nonTank7color = NPTframe:CreateColorSwatch("nonTank7color", "Healers have High Threat", 4, 1, true)
+    NPTframe.nonTank3color = NPTframe:CreateColorSwatch("nonTank3color", "You have the High Threat", 4, 2, true)
+    NPTframe.nonTank2color = NPTframe:CreateColorSwatch("nonTank2color", "Damage has Low Threat", 4, 3, true)
+    NPTframe.nonTank0color = NPTframe:CreateColorSwatch("nonTank0color", "Damage has High Threat", 4, 4, true)
+    NPTframe.nonTank5color = NPTframe:CreateColorSwatch("nonTank5color", "Tanks have High Threat", 4, 5, true)
+
+    NPTframe.nonTankForced = NPTframe:CreateCheckButton("nonTankForced", "Unique Colors Forced Non-Tank", 8, nil, true)
+    NPTframe.nonTank6color = NPTframe:CreateColorSwatch("nonTank6color", "Healers have Low Threat", 8, 1, true)
+    NPTframe.nonTank1color = NPTframe:CreateColorSwatch("nonTank1color", "You have the Low Threat", 8, 2, true)
+    NPTframe.nonTank4color = NPTframe:CreateColorSwatch("nonTank4color", "Tanks have Low Threat", 8, 3, true)
     InterfaceOptions_AddCategory(NPTframe)
 end
 function NPTframe:CreateColorSwatch(newName, newText, mainRow, subRow, columnTwo)
     local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
     newObject.label = _G[newName .. "Text"]
     local rowX, rowY, colX = 10, 22.65, 0
-    if subRow and subRow > 0 then
+    if subRow then
 	newObject.label:SetFontObject("GameFontHighlightSmall")
         rowY = rowY*subRow
     else
@@ -444,14 +457,15 @@ function NPTframe:CreateColorSwatch(newName, newText, mainRow, subRow, columnTwo
     newObject.label:SetText(newText)
     newObject:SetPoint("LEFT", self, "TOPLEFT", 14+rowX+colX, -59.3-rowY)
     newObject.label:SetPoint("LEFT", self, "TOPLEFT", 42+rowX+colX, -58.3-rowY)
-    newObject.label:SetPoint("RIGHT", self, "TOPRIGHT", -32-286+colX, -58.3-rowY)
+    newObject.label:SetPoint("RIGHT", self, "TOPRIGHT", -318+colX, -58.3-rowY)
+    newObject:Disable()
     return newObject
 end
 function NPTframe:CreateCheckButton(newName, newText, mainRow, subRow, columnTwo)
     local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
     newObject.label = _G[newName .. "Text"]
     local rowX, rowY, colX = 10, 22.65, 0
-    if subRow and subRow > 0 then
+    if subRow then
 	newObject.label:SetFontObject("GameFontHighlightSmall")
         rowY = rowY*subRow
     else
@@ -466,7 +480,8 @@ function NPTframe:CreateCheckButton(newName, newText, mainRow, subRow, columnTwo
     newObject.label:SetText(newText)
     newObject:SetPoint("LEFT", self, "TOPLEFT", 14+rowX+colX, -59.3-rowY)
     newObject.label:SetPoint("LEFT", self, "TOPLEFT", 42+rowX+colX, -58.3-rowY)
-    newObject.label:SetPoint("RIGHT", self, "TOPRIGHT", -32-286+colX, -58.3-rowY)
+    newObject.label:SetPoint("RIGHT", self, "TOPRIGHT", -318+colX, -58.3-rowY)
+    newObject:Disable()
     return newObject
 end
 function NPTframe:CreateCheckSlider(newCheck, newText, newSlider, minVal, maxVal, mainRow, columnTwo)
@@ -477,7 +492,7 @@ function NPTframe:CreateCheckSlider(newCheck, newText, newSlider, minVal, maxVal
         colX = 286
     end
     newSlider:SetPoint("LEFT", self, "TOPLEFT", 42+colX, -59.3-rowY)
-    newSlider:SetPoint("RIGHT", self, "TOPRIGHT", -32-286+colX, -59.3-rowY)
+    newSlider:SetPoint("RIGHT", self, "TOPRIGHT", -318+colX, -59.3-rowY)
     newSlider:SetMinMaxValues(minVal, maxVal)
     newSlider:SetValueStep(maxVal/20 - minVal/20)
     newSlider:SetObeyStepOnDrag(true)
@@ -487,20 +502,20 @@ function NPTframe:CreateCheckSlider(newCheck, newText, newSlider, minVal, maxVal
     newSlider.high:SetText(maxVal)
     newSlider.text = _G[newSlider:GetName() .. "Text"]
     newSlider.text:ClearAllPoints()
-    newSlider.text:SetPoint("LEFT", self, "TOPLEFT", 42+colX, -59.3-rowY-10)
-    newSlider.text:SetPoint("RIGHT", self, "TOPRIGHT", -32-286+colX, -59.3-rowY-10)
+    newSlider.text:SetPoint("LEFT", self, "TOPLEFT", 42+colX, -69.3-rowY)
+    newSlider.text:SetPoint("RIGHT", self, "TOPRIGHT", -318+colX, -69.3-rowY)
     newSlider.text:SetFontObject("GameFontHighlightSmall")
     newSlider.text:SetText(minVal + maxVal/2 - minVal/2)
-
     newCheck:SetPoint("LEFT", self, "TOPLEFT", 14+colX, -59.3-rowY)
     newCheck:SetHitRectInsets(0, 0, 0, 0)
     newCheck.label = _G[newCheck:GetName() .. "Text"]
-    newCheck.label:SetPoint("LEFT", self, "TOPLEFT", 42+colX, -59.3-rowY+11)
-    newCheck.label:SetPoint("RIGHT", self, "TOPRIGHT", -32-286+colX, -59.3-rowY+11)
+    newCheck.label:SetPoint("LEFT", self, "TOPLEFT", 42+colX, -48.3-rowY)
+    newCheck.label:SetPoint("RIGHT", self, "TOPRIGHT", -318+colX, -48.3-rowY)
     newCheck.label:SetJustifyH("CENTER")
     newCheck.label:SetText(newText)
     newCheck.label:SetFontObject("GameFontHighlightSmall")
     newCheck.slider = newSlider
-
+    newCheck:Disable()
+    newSlider:Disable()
     return newCheck, newSlider
 end
