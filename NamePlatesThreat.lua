@@ -319,7 +319,7 @@ NPT:RegisterEvent("ADDON_LOADED");
 NPT:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "NamePlatesThreat" then
         NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
-        NPTframe:init()
+        NPTframe:Init()
     elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
         local callback = function()
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
@@ -380,7 +380,7 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
     print(GetServerTime() .. " NPTframe.refresh() " .. NPTframe:GetWidth()) -- for debugging only
 end
 
-function NPTframe:init()
+function NPTframe:Init()
     NPTframe:cancel() -- simulate options cancel so panel variables are reset
     NPTframe.name = GetAddOnMetadata("NamePlatesThreat", "Title")
     -- CheckButton starts 14 right -93.3 down with -34 for each below it (label starts 42 right -92.3 down)
@@ -388,59 +388,119 @@ function NPTframe:init()
 
     NPTframe.bigTitle = NPTframe:CreateFontString("bigTitle", "ARTWORK", "GameFontNormalLarge")
     NPTframe.bigTitle:SetPoint("LEFT", NPTframe, "TOPLEFT", 16, -24)
-    NPTframe.bigTitle:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16, -24)
+    NPTframe.bigTitle:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -32, -24)
     NPTframe.bigTitle:SetJustifyH("LEFT")
     NPTframe.bigTitle:SetText(NPTframe.name .. " " .. NPTacct.addonsVersion .. " by " .. GetAddOnMetadata("NamePlatesThreat", "Author"))
+    NPTframe.bigTitle:SetHeight(NPTframe.bigTitle:GetStringHeight() * 1)
 
     NPTframe.subTitle = NPTframe:CreateFontString("subTitle", "ARTWORK", "GameFontHighlightSmall")
-    NPTframe.subTitle:SetPoint("LEFT", NPTframe, "TOPLEFT", 16, -48)
-    NPTframe.subTitle:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16, -48)
+    NPTframe.subTitle:SetPoint("LEFT", NPTframe, "TOPLEFT", 16, -50)
+    NPTframe.subTitle:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -32, -50)
     NPTframe.subTitle:SetJustifyH("LEFT")
-    NPTframe.subTitle:SetText(GetAddOnMetadata("NamePlatesThreat", "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
+    NPTframe.subTitle:SetText(GetAddOnMetadata("NamePlatesThreat", "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
+    NPTframe.subTitle:SetHeight(NPTframe.subTitle:GetStringHeight() * 2)
 
-    NPTframe.addonIsActive = CreateFrame("CheckButton", "addonIsActive", NPTframe, "InterfaceOptionsCheckButtonTemplate")
-    NPTframe.addonIsActive:SetPoint("LEFT", NPTframe, "TOPLEFT", 14, -93.3)
-    NPTframe.addonIsActive.label = _G[NPTframe.addonIsActive:GetName() .. "Text"]
-    NPTframe.addonIsActive.label:SetPoint("LEFT", NPTframe, "TOPLEFT", 42, -92.3)
-    NPTframe.addonIsActive.label:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16-623/2, -92.3)
-    NPTframe.addonIsActive.label:SetJustifyH("LEFT")
-    NPTframe.addonIsActive.label:SetText("Color Non-friendly Nameplates by Threat")
+    NPTframe.addonIsActive = NPTframe:CreateCheckButton("addonIsActive", "Color Non-Friendly Nameplates", 1)
 
-    NPTframe.ignorePlayers = CreateFrame("CheckButton", "ignorePlayers", NPTframe, "InterfaceOptionsCheckButtonTemplate")
-    NPTframe.ignorePlayers:SetPoint("LEFT", NPTframe, "TOPLEFT", 24, -115.3)
-    NPTframe.ignorePlayers.label = _G[NPTframe.ignorePlayers:GetName() .. "Text"]
-    NPTframe.ignorePlayers.label:SetPoint("LEFT", NPTframe, "TOPLEFT", 52, -114.3)
-    NPTframe.ignorePlayers.label:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16-623/2, -114.3)
-    NPTframe.ignorePlayers.label:SetJustifyH("LEFT")
-    NPTframe.ignorePlayers.label:SetText("Ignore Player Characters")
-    NPTframe.ignorePlayers.label:SetFontObject("GameFontHighlightSmall")
+    NPTframe.ignorePlayers = NPTframe:CreateCheckButton("ignorePlayers", "Ignore Player Characters", 1, 1)
 
-    NPTframe.ignoreNeutral = CreateFrame("CheckButton", "ignoreNeutral", NPTframe, "InterfaceOptionsCheckButtonTemplate")
-    NPTframe.ignoreNeutral:SetPoint("LEFT", NPTframe, "TOPLEFT", 24, -137.3)
-    NPTframe.ignoreNeutral.label = _G[NPTframe.ignoreNeutral:GetName() .. "Text"]
-    NPTframe.ignoreNeutral.label:SetPoint("LEFT", NPTframe, "TOPLEFT", 52, -136.3)
-    NPTframe.ignoreNeutral.label:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16-623/2, -136.3)
-    NPTframe.ignoreNeutral.label:SetJustifyH("LEFT")
-    NPTframe.ignoreNeutral.label:SetText("Ignore Neutral Targets")
-    NPTframe.ignoreNeutral.label:SetFontObject("GameFontHighlightSmall")
+    NPTframe.ignoreNeutral = NPTframe:CreateCheckButton("ignoreNeutral", "Ignore Neutral Targets", 1, 2)
 
-    NPTframe.ignoreNoGroup = CreateFrame("CheckButton", "ignoreNoGroup", NPTframe, "InterfaceOptionsCheckButtonTemplate")
-    NPTframe.ignoreNoGroup:SetPoint("LEFT", NPTframe, "TOPLEFT", 24, -159.3)
-    NPTframe.ignoreNoGroup.label = _G[NPTframe.ignoreNoGroup:GetName() .. "Text"]
-    NPTframe.ignoreNoGroup.label:SetPoint("LEFT", NPTframe, "TOPLEFT", 52, -158.3)
-    NPTframe.ignoreNoGroup.label:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16-623/2, -158.3)
-    NPTframe.ignoreNoGroup.label:SetJustifyH("LEFT")
-    NPTframe.ignoreNoGroup.label:SetText("Ignore Targets not Fighting your Group")
-    NPTframe.ignoreNoGroup.label:SetFontObject("GameFontHighlightSmall")
+    NPTframe.ignoreNoGroup = NPTframe:CreateCheckButton("ignoreNoGroup", "Ignore Out of Combat", 1, 3)
 
-    NPTframe.gradientColor = CreateFrame("CheckButton", "gradientColor", NPTframe, "InterfaceOptionsCheckButtonTemplate")
-    NPTframe.gradientColor:SetPoint("LEFT", NPTframe, "TOPLEFT", 14, -195.3)
-    NPTframe.gradientColor.label = _G[NPTframe.gradientColor:GetName() .. "Text"]
-    NPTframe.gradientColor.label:SetPoint("LEFT", NPTframe, "TOPLEFT", 42, -194.3)
-    NPTframe.gradientColor.label:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -16-623/2, -194.3)
-    NPTframe.gradientColor.label:SetJustifyH("LEFT")
-    NPTframe.gradientColor.label:SetWordWrap(true)
-    NPTframe.gradientColor.label:SetText("Color Gradient Delay in Seconds bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla")
+    NPTframe.nonTankReused = NPTframe:CreateCheckButton("nonTankReused", "Reuse Tank Role Colors in Non-Tank Role", 1, 0, true)
 
+    NPTframe.forcingReused = NPTframe:CreateCheckButton("forcingReused", "Reuse High Threat Colors for Low Threat", 2, 0, true)
+
+    NPTframe.gradientColor, NPTframe.gradientDelay = NPTframe:CreateCheckSlider("gradientColor", "Color Gradient Delay in Seconds", "gradientDelay", 0, 1, 3, true)
+    
+    NPTframe.nonGroupColor = NPTframe:CreateColorSwatch("nonGroupColor", "Target is Out of Combat", 4)
     InterfaceOptions_AddCategory(NPTframe)
+end
+function NPTframe:CreateColorSwatch(newName, newText, mainRow, subRow, columnTwo)
+    local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
+    newObject.label = _G[newName .. "Text"]
+    local rowX, rowY, colX = 10, 22.65, 0
+    if subRow and subRow > 0 then
+	newObject.label:SetFontObject("GameFontHighlightSmall")
+        rowY = rowY*subRow
+    else
+        rowX = 0
+	rowY = 0
+    end
+    rowY = 34*mainRow + rowY
+    if columnTwo then
+        colX = 286
+    end
+    newObject.color = newObject:CreateTexture()
+    newObject.color:SetWidth(15)
+    newObject.color:SetHeight(15)
+    newObject.color:SetPoint("CENTER")
+    newObject.color:SetTexture("Interface/ChatFrame/ChatFrameColorSwatch")
+    newObject:SetBackdrop({bgFile="Interface/ChatFrame/ChatFrameColorSwatch",insets={left=3,right=3,top=3,bottom=3}})
+    newObject:SetPushedTexture(newObject.color)
+    newObject:SetNormalTexture(newObject.color)
+    newObject.label:SetJustifyH("LEFT")
+    newObject.label:SetText(newText)
+    newObject:SetPoint("LEFT", self, "TOPLEFT", 14+rowX+colX, -59.3-rowY)
+    newObject.label:SetPoint("LEFT", self, "TOPLEFT", 42+rowX+colX, -58.3-rowY)
+    newObject.label:SetPoint("RIGHT", self, "TOPRIGHT", -32-286+colX, -58.3-rowY)
+    return newObject
+end
+function NPTframe:CreateCheckButton(newName, newText, mainRow, subRow, columnTwo)
+    local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
+    newObject.label = _G[newName .. "Text"]
+    local rowX, rowY, colX = 10, 22.65, 0
+    if subRow and subRow > 0 then
+	newObject.label:SetFontObject("GameFontHighlightSmall")
+        rowY = rowY*subRow
+    else
+        rowX = 0
+	rowY = 0
+    end
+    rowY = 34*mainRow + rowY
+    if columnTwo then
+        colX = 286
+    end
+    newObject.label:SetJustifyH("LEFT")
+    newObject.label:SetText(newText)
+    newObject:SetPoint("LEFT", self, "TOPLEFT", 14+rowX+colX, -59.3-rowY)
+    newObject.label:SetPoint("LEFT", self, "TOPLEFT", 42+rowX+colX, -58.3-rowY)
+    newObject.label:SetPoint("RIGHT", self, "TOPRIGHT", -32-286+colX, -58.3-rowY)
+    return newObject
+end
+function NPTframe:CreateCheckSlider(newCheck, newText, newSlider, minVal, maxVal, mainRow, columnTwo)
+    local newCheck = CreateFrame("CheckButton", newCheck, self, "InterfaceOptionsCheckButtonTemplate")
+    local newSlider = CreateFrame("Slider", newSlider, self, "OptionsSliderTemplate")
+    local rowY, colX = 34*mainRow, 0
+    if columnTwo then
+        colX = 286
+    end
+    newSlider:SetPoint("LEFT", self, "TOPLEFT", 42+colX, -59.3-rowY)
+    newSlider:SetPoint("RIGHT", self, "TOPRIGHT", -32-286+colX, -59.3-rowY)
+    newSlider:SetMinMaxValues(minVal, maxVal)
+    newSlider:SetValueStep(maxVal/20 - minVal/20)
+    newSlider:SetObeyStepOnDrag(true)
+    newSlider.low = _G[newSlider:GetName() .. "Low"]
+    newSlider.low:SetText(minVal)
+    newSlider.high = _G[newSlider:GetName() .. "High"]
+    newSlider.high:SetText(maxVal)
+    newSlider.text = _G[newSlider:GetName() .. "Text"]
+    newSlider.text:ClearAllPoints()
+    newSlider.text:SetPoint("LEFT", self, "TOPLEFT", 42+colX, -59.3-rowY-10)
+    newSlider.text:SetPoint("RIGHT", self, "TOPRIGHT", -32-286+colX, -59.3-rowY-10)
+    newSlider.text:SetFontObject("GameFontHighlightSmall")
+    newSlider.text:SetText(minVal + maxVal/2 - minVal/2)
+
+    newCheck:SetPoint("LEFT", self, "TOPLEFT", 14+colX, -59.3-rowY)
+    newCheck:SetHitRectInsets(0, 0, 0, 0)
+    newCheck.label = _G[newCheck:GetName() .. "Text"]
+    newCheck.label:SetPoint("LEFT", self, "TOPLEFT", 42+colX, -59.3-rowY+11)
+    newCheck.label:SetPoint("RIGHT", self, "TOPRIGHT", -32-286+colX, -59.3-rowY+11)
+    newCheck.label:SetJustifyH("CENTER")
+    newCheck.label:SetText(newText)
+    newCheck.label:SetFontObject("GameFontHighlightSmall")
+    newCheck.slider = newSlider
+
+    return newCheck, newSlider
 end
