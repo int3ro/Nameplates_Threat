@@ -1,9 +1,9 @@
 local function initVariables(oldAcct) -- only the variables below are used by the addon
     newAcct = {}
-    newAcct["addonIsActive"] = true -- color by threat those nameplates you can attack
-    newAcct["ignorePlayers"] = true -- ignoring nameplates for player characters
-    newAcct["ignoreNeutral"] = true -- ignoring nameplates for neutral monsters
-    newAcct["ignoreNoGroup"] = true -- ignoring nameplates not fighting your group
+    newAcct["addonsEnabled"] = true -- color by threat those nameplates you can attack
+    newAcct["enablePlayers"] = false -- also color nameplates for player characters
+    newAcct["enableNeutral"] = false -- also color nameplates for neutral targets
+    newAcct["enableNoGroup"] = false -- also color nameplates not fighting your group
     newAcct["gradientColor"] = true -- update nameplate color gradients (some CPU usage)
     newAcct["gradientDelay"] = 0.2  -- update nameplate color gradients every x seconds
     newAcct["nonGroupColor"] = {r=0.15, g=0.15, b=0.15} -- dark   target not in group fight
@@ -15,7 +15,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
     newAcct["youTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
     newAcct["youTank1color"] = {r=1.00, g=1.00, b=0.47} -- yellow others tanking by force
     newAcct["youTank0color"] = {r=1.00, g=0.60, b=0.00} -- orange others tanking by threat
-    newAcct["nonTankUnique"] = true -- unique nontank colors instead of flip colors above
+    newAcct["nonTankUnique"] = false -- unique nontank colors instead of flip colors above
     newAcct["nonTank7color"] = {r=1.00, g=0.00, b=0.00} -- red    healers tanking by threat
     newAcct["nonTank6color"] = {r=1.00, g=0.60, b=0.00} -- orange healers tanking by force
     newAcct["nonTank5color"] = {r=0.00, g=0.85, b=0.00} -- green  group tanks tank by threat
@@ -24,15 +24,18 @@ local function initVariables(oldAcct) -- only the variables below are used by th
     newAcct["nonTank2color"] = {r=1.00, g=1.00, b=0.47} -- yellow others tanking by force
     newAcct["nonTank1color"] = {r=1.00, g=1.00, b=0.47} -- yellow you are tanking by force
     newAcct["nonTank0color"] = {r=1.00, g=0.60, b=0.00} -- orange you are tanking by threat
-    newAcct["forcingUnique"] = true -- unique force colors instead of reuse threat colors
+    newAcct["forcingUnique"] = false -- unique force colors instead of reuse threat colors
     newAcct["addonsVersion"] = tonumber(GetAddOnMetadata("NamePlatesThreat", "Version"))
 
     if oldAcct then -- override defaults with imported values if old keys match new keys
-        for key in pairs(newAcct) do
-            if oldAcct[key] and key ~= "addonsVersion" then
+        --print("oldAcct:Begin")
+        for key, value in pairs(newAcct) do
+            if oldAcct[key] ~= nil and key ~= "addonsVersion" then
                 newAcct[key] = oldAcct[key]
+		--print("newAcct:" .. key .. ":" .. tostring(newAcct[key]))
             end
         end -- any old variables we do not recognize by their key name are discarded now
+	--print("oldAcct:Finish")
     end
     return newAcct
 end
@@ -192,10 +195,10 @@ end
 local function updateThreatColor(frame)
     local unit = frame.unit -- variable also reused for the threat ratio further down
 
-    if NPTacct.addonIsActive -- only color nameplates you can attack if addon is active
+    if NPTacct.addonsEnabled -- only color nameplates you can attack if addon is active
         and UnitCanAttack("player", unit) and not CompactUnitFrame_IsTapDenied(frame)
-        and not (NPTacct.ignorePlayers and UnitIsPlayer(unit))
-        and not (NPTacct.ignoreNeutral and UnitReaction(unit, "player") > 3 and
+        and (NPTacct.enablePlayers or not UnitIsPlayer(unit))
+        and (NPTacct.enableNeutral or not UnitReaction(unit, "player") > 3 or
                  not UnitIsFriend(unit .. "target", "player")) then
 
         --[[Custom threat situation nameplate coloring:
@@ -273,8 +276,8 @@ local function updateThreatColor(frame)
                     color = NPTacct["nonTank" .. color .. "color"]
                     fader = NPTacct["nonTank" .. fader .. "color"]
                 end
-            elseif NPTacct.ignoreNoGroup then
-                resetFrame(frame) -- reset frame if monster not fighting group member/pet
+            elseif not NPTacct.enableNoGroup then
+                resetFrame(frame) -- reset frame if monster not fighting group
                 return
             end
             if not frame.threat then
@@ -318,8 +321,7 @@ NPT:RegisterEvent("UNIT_PET");
 NPT:RegisterEvent("ADDON_LOADED");
 NPT:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "NamePlatesThreat" then
-        NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
-        NPTframe:Init()
+        NPTframe:Initialize()
     elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
         local callback = function()
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
@@ -356,7 +358,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
     end
 end);
 NPT:SetScript("OnUpdate", function(self, elapsed)
-    if NPTacct.addonIsActive and NPTacct.gradientColor then
+    if NPTacct.addonsEnabled and NPTacct.gradientColor then
         NPT.thisUpdate = NPT.thisUpdate + elapsed
         if NPT.thisUpdate >= NPTacct.gradientDelay then
             NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
@@ -365,10 +367,12 @@ NPT:SetScript("OnUpdate", function(self, elapsed)
 end);
 function NPTframe.okay()
     NPTacct = initVariables(NPT.acct) -- store panel fields into addon variables
+    --print(GetServerTime() .. " NPTframe.okay(): NPTacct.addonsEnabled=" .. tostring(NPTacct.addonsEnabled))
     NPTframe:refresh()
 end
 function NPTframe.cancel()
     NPT.acct = initVariables(NPTacct) -- restore panel fields from addon variables
+    --print(GetServerTime() .. " NPTframe.cancel(): NPT.acct.addonsEnabled=" .. tostring(NPT.acct.addonsEnabled))
 end
 function NPTframe.default()
     NPTacct = initVariables()
@@ -377,58 +381,76 @@ end
 function NPTframe.refresh() -- called on panel shown or after default was accepted
     NPT:GetScript("OnEvent")(NPT, "PLAYER_ENTERING_WORLD")
     NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
-    -- print(GetServerTime() .. " NPTframe.refresh() " .. NPTframe:GetWidth()) -- for debugging only
+    --print(GetServerTime() .. " NPTframe.refresh(): Begin") -- for debugging only
+    NPTframe.addonsEnabled:GetScript("PostClick")(NPTframe.addonsEnabled, nil, nil, NPT.acct.addonsEnabled)
+    --print(GetServerTime() .. " NPTframe.refresh(): Finish") -- for debugging only
 end
 
-function NPTframe:Init()
-    NPTframe:cancel() -- simulate options cancel so panel variables are reset
-    NPTframe.name = GetAddOnMetadata("NamePlatesThreat", "Title")
+function NPTframe:Initialize()
+    NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
+    --print(GetServerTime() .. " NPTframe:Initialize(): NPTacct.addonsEnabled=" .. tostring(NPTacct.addonsEnabled))
+    self:cancel() -- simulate options cancel so panel variables are reset
+    self.name = GetAddOnMetadata("NamePlatesThreat", "Title")
 
-    NPTframe.bigTitle = NPTframe:CreateFontString("bigTitle", "ARTWORK", "GameFontNormalLarge")
-    NPTframe.bigTitle:SetPoint("LEFT", NPTframe, "TOPLEFT", 16, -24)
-    NPTframe.bigTitle:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -32, -24)
-    NPTframe.bigTitle:SetJustifyH("LEFT")
-    NPTframe.bigTitle:SetText(NPTframe.name .. " " .. NPTacct.addonsVersion .. " by " .. GetAddOnMetadata("NamePlatesThreat", "Author"))
-    NPTframe.bigTitle:SetHeight(NPTframe.bigTitle:GetStringHeight() * 1)
+    self.bigTitle = self:CreateFontString("bigTitle", "ARTWORK", "GameFontNormalLarge")
+    self.bigTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -24)
+    self.bigTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
+    self.bigTitle:SetJustifyH("LEFT")
+    self.bigTitle:SetText(self.name .. " " .. NPTacct.addonsVersion .. " by " .. GetAddOnMetadata("NamePlatesThreat", "Author"))
+    self.bigTitle:SetHeight(self.bigTitle:GetStringHeight() * 1)
 
-    NPTframe.subTitle = NPTframe:CreateFontString("subTitle", "ARTWORK", "GameFontHighlightSmall")
-    NPTframe.subTitle:SetPoint("LEFT", NPTframe, "TOPLEFT", 16, -50)
-    NPTframe.subTitle:SetPoint("RIGHT", NPTframe, "TOPRIGHT", -32, -50)
-    NPTframe.subTitle:SetJustifyH("LEFT")
-    NPTframe.subTitle:SetText(GetAddOnMetadata("NamePlatesThreat", "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
-    NPTframe.subTitle:SetHeight(NPTframe.subTitle:GetStringHeight() * 2)
+    self.subTitle = self:CreateFontString("subTitle", "ARTWORK", "GameFontHighlightSmall")
+    self.subTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -50)
+    self.subTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -50)
+    self.subTitle:SetJustifyH("LEFT")
+    self.subTitle:SetText(GetAddOnMetadata("NamePlatesThreat", "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
+    self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
-    NPTframe.addonIsActive = NPTframe:CreateCheckButton("addonIsActive", "Color Non-Friendly Nameplates", 1)
-    NPTframe.ignorePlayers = NPTframe:CreateCheckButton("ignorePlayers", "Ignore Player Characters", 1, 1)
-    NPTframe.ignoreNeutral = NPTframe:CreateCheckButton("ignoreNeutral", "Ignore Neutral Targets", 1, 2)
-    NPTframe.ignoreNoGroup = NPTframe:CreateCheckButton("ignoreNoGroup", "Ignore Out of Combat", 1, 3)
+    self.addonsEnabled = self:CreateCheckButton("addonsEnabled", "Color Non-Friendly Nameplates", 1)
+    self.enablePlayers = self:CreateCheckButton("enablePlayers", "Color Player Characters", 1, 1)
+    self.enableNeutral = self:CreateCheckButton("enableNeutral", "Color Neutral Targets", 1, 2)
+    self.enableNoGroup = self:CreateCheckButton("enableNoGroup", "Color Out of Combat", 1, 3)
 
-    NPTframe.gradientColor, NPTframe.gradientDelay = NPTframe:CreateCheckSlider("gradientColor", "Color Gradient Delay in Seconds", "gradientDelay", 0, 1, 2, true)
+    self.gradientColor, self.gradientDelay = self:CreateCheckSlider("gradientColor", "Color Gradient Delay in Seconds", "gradientDelay", 0, 1, 2, true)
     
-    NPTframe.nonGroupColor = NPTframe:CreateColorSwatch("nonGroupColor", "Target is Out of Combat", 4, 0)
-    NPTframe.youTank7color = NPTframe:CreateColorSwatch("youTank7color", "Healers have High Threat", 4, 1)
-    NPTframe.youTank0color = NPTframe:CreateColorSwatch("youTank0color", "Damage has High Threat", 4, 2)
-    NPTframe.youTank2color = NPTframe:CreateColorSwatch("youTank2color", "You have the Low Threat", 4, 3)
-    NPTframe.youTank3color = NPTframe:CreateColorSwatch("youTank3color", "You have the High Threat", 4, 4)
-    NPTframe.youTank5color = NPTframe:CreateColorSwatch("youTank5color", "Tanks have High Threat", 4, 5)
+    self.nonGroupColor = self:CreateColorSwatch("nonGroupColor", "Target is Out of Combat", 4, 0)
+    self.youTank7color = self:CreateColorSwatch("youTank7color", "Healers have High Threat", 4, 1)
+    self.youTank0color = self:CreateColorSwatch("youTank0color", "Damage has High Threat", 4, 2)
+    self.youTank2color = self:CreateColorSwatch("youTank2color", "You have the Low Threat", 4, 3)
+    self.youTank3color = self:CreateColorSwatch("youTank3color", "You have the High Threat", 4, 4)
+    self.youTank5color = self:CreateColorSwatch("youTank5color", "Tanks have High Threat", 4, 5)
 
-    NPTframe.forcingUnique = NPTframe:CreateCheckButton("forcingUnique", "Unique Colors Forced Tanking", 8)
-    NPTframe.youTank6color = NPTframe:CreateColorSwatch("youTank6color", "Healers have Low Threat", 8, 1)
-    NPTframe.youTank1color = NPTframe:CreateColorSwatch("youTank1color", "Damage has Low Threat", 8, 2)
-    NPTframe.youTank4color = NPTframe:CreateColorSwatch("youTank4color", "Tanks have Low Threat", 8, 3)
+    self.forcingUnique = self:CreateCheckButton("forcingUnique", "Unique Colors Forced Tanking", 8)
+    self.youTank6color = self:CreateColorSwatch("youTank6color", "Healers have Low Threat", 8, 1)
+    self.youTank1color = self:CreateColorSwatch("youTank1color", "Damage has Low Threat", 8, 2)
+    self.youTank4color = self:CreateColorSwatch("youTank4color", "Tanks have Low Threat", 8, 3)
 
-    NPTframe.nonTankUnique = NPTframe:CreateCheckButton("nonTankUnique", "Unique Colors as Non-Tank Role", 4, nil, true)
-    NPTframe.nonTank7color = NPTframe:CreateColorSwatch("nonTank7color", "Healers have High Threat", 4, 1, true)
-    NPTframe.nonTank3color = NPTframe:CreateColorSwatch("nonTank3color", "You have the High Threat", 4, 2, true)
-    NPTframe.nonTank2color = NPTframe:CreateColorSwatch("nonTank2color", "Damage has Low Threat", 4, 3, true)
-    NPTframe.nonTank0color = NPTframe:CreateColorSwatch("nonTank0color", "Damage has High Threat", 4, 4, true)
-    NPTframe.nonTank5color = NPTframe:CreateColorSwatch("nonTank5color", "Tanks have High Threat", 4, 5, true)
+    self.nonTankUnique = self:CreateCheckButton("nonTankUnique", "Unique Colors as Non-Tank Role", 4, nil, true)
+    self.nonTank7color = self:CreateColorSwatch("nonTank7color", "Healers have High Threat", 4, 1, true)
+    self.nonTank3color = self:CreateColorSwatch("nonTank3color", "You have the High Threat", 4, 2, true)
+    self.nonTank2color = self:CreateColorSwatch("nonTank2color", "Damage has Low Threat", 4, 3, true)
+    self.nonTank0color = self:CreateColorSwatch("nonTank0color", "Damage has High Threat", 4, 4, true)
+    self.nonTank5color = self:CreateColorSwatch("nonTank5color", "Tanks have High Threat", 4, 5, true)
 
-    NPTframe.nonTankForced = NPTframe:CreateCheckButton("nonTankForced", "Unique Colors Forced Non-Tank", 8, nil, true)
-    NPTframe.nonTank6color = NPTframe:CreateColorSwatch("nonTank6color", "Healers have Low Threat", 8, 1, true)
-    NPTframe.nonTank1color = NPTframe:CreateColorSwatch("nonTank1color", "You have the Low Threat", 8, 2, true)
-    NPTframe.nonTank4color = NPTframe:CreateColorSwatch("nonTank4color", "Tanks have Low Threat", 8, 3, true)
-    InterfaceOptions_AddCategory(NPTframe)
+    self.nonTankForced = self:CreateCheckButton("nonTankForced", "Unique Colors Forced Non-Tank", 8, nil, true)
+    self.nonTank6color = self:CreateColorSwatch("nonTank6color", "Healers have Low Threat", 8, 1, true)
+    self.nonTank1color = self:CreateColorSwatch("nonTank1color", "You have the Low Threat", 8, 2, true)
+    self.nonTank4color = self:CreateColorSwatch("nonTank4color", "Tanks have Low Threat", 8, 3, true)
+
+    self.addonsEnabled:SetScript("PostClick", function(self, button, down, value)
+        if value ~= nil then
+	    self:SetChecked(value)
+	    self:Enable()
+	end
+        NPT.acct.addonsEnabled = self:GetChecked()
+	if NPT.acct.addonsEnabled ~= NPTacct.addonsEnabled then
+	    self.label:SetFontObject("GameFontNormalSmall")
+	else
+	    self.label:SetFontObject("GameFontHighlightSmall")
+	end
+	--print(GetServerTime() .. " NPTframe.addonsEnabled(): NPT.acct.addonsEnabled=" .. tostring(NPT.acct.addonsEnabled))
+    end)
+    InterfaceOptions_AddCategory(self)
 end
 function NPTframe:CreateColorSwatch(newName, newText, mainRow, subRow, columnTwo)
     local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
@@ -458,6 +480,7 @@ function NPTframe:CreateColorSwatch(newName, newText, mainRow, subRow, columnTwo
     newObject:SetPoint("LEFT", self, "TOPLEFT", 14+rowX+colX, -59.3-rowY)
     newObject.label:SetPoint("LEFT", self, "TOPLEFT", 42+rowX+colX, -58.3-rowY)
     newObject.label:SetPoint("RIGHT", self, "TOPRIGHT", -318+colX, -58.3-rowY)
+    newObject:SetBackdropColor(0.3, 0.3, 0.3)
     newObject:Disable()
     return newObject
 end
