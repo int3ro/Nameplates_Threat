@@ -198,8 +198,8 @@ local function updateThreatColor(frame)
     if NPTacct.addonsEnabled -- only color nameplates you can attack if addon is active
         and UnitCanAttack("player", unit) and not CompactUnitFrame_IsTapDenied(frame)
         and (NPTacct.enablePlayers or not UnitIsPlayer(unit))
-        and (NPTacct.enableNeutral or not UnitReaction(unit, "player") > 3 or
-                 not UnitIsFriend(unit .. "target", "player")) then
+        and (NPTacct.enableNeutral or not (UnitReaction(unit, "player") > 3)
+            or not UnitIsFriend(unit .. "target", "player")) then
 
         --[[Custom threat situation nameplate coloring:
            -1 = no threat data (monster not in combat).
