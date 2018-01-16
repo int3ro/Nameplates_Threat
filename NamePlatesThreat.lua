@@ -32,10 +32,10 @@ local function initVariables(oldAcct) -- only the variables below are used by th
         for key, value in pairs(newAcct) do
             if oldAcct[key] ~= nil and key ~= "addonsVersion" then
                 newAcct[key] = oldAcct[key]
-		--print("newAcct:" .. key .. ":" .. tostring(newAcct[key]))
+                --print("newAcct:" .. key .. ":" .. tostring(newAcct[key]))
             end
         end -- any old variables we do not recognize by their key name are discarded now
-	--print("oldAcct:Finish")
+        --print("oldAcct:Finish")
     end
     return newAcct
 end
@@ -367,28 +367,56 @@ NPT:SetScript("OnUpdate", function(self, elapsed)
 end);
 function NPTframe.okay()
     NPTacct = initVariables(NPT.acct) -- store panel fields into addon variables
-    --print(GetServerTime() .. " NPTframe.okay(): NPTacct.addonsEnabled=" .. tostring(NPTacct.addonsEnabled))
+    --print(GetServerTime() .. " NPTframe.okay(): NPTacct.enableNeutral=" .. tostring(NPTacct.enableNeutral))
     NPTframe:refresh()
 end
 function NPTframe.cancel()
     NPT.acct = initVariables(NPTacct) -- restore panel fields from addon variables
-    --print(GetServerTime() .. " NPTframe.cancel(): NPT.acct.addonsEnabled=" .. tostring(NPT.acct.addonsEnabled))
+    --print(GetServerTime() .. " NPTframe.cancel(): NPT.acct.enableNeutral=" .. tostring(NPT.acct.enableNeutral))
 end
 function NPTframe.default()
-    NPTacct = initVariables()
-    NPTframe:cancel()
+    NPT.acct = initVariables()
 end
 function NPTframe.refresh() -- called on panel shown or after default was accepted
     NPT:GetScript("OnEvent")(NPT, "PLAYER_ENTERING_WORLD")
     NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
     --print(GetServerTime() .. " NPTframe.refresh(): Begin") -- for debugging only
-    NPTframe.addonsEnabled:GetScript("PostClick")(NPTframe.addonsEnabled, nil, nil, NPT.acct.addonsEnabled)
+    NPTframe.addonsEnabled:GetScript("PostClick")(NPTframe.addonsEnabled, nil, nil, NPT.acct.addonsEnabled, true)
+    NPTframe.enablePlayers:GetScript("PostClick")(NPTframe.enablePlayers, nil, nil, NPT.acct.enablePlayers)
+    NPTframe.enableNeutral:GetScript("PostClick")(NPTframe.enableNeutral, nil, nil, NPT.acct.enableNeutral)
     --print(GetServerTime() .. " NPTframe.refresh(): Finish") -- for debugging only
 end
-
+function NPTframe.CheckButtonPostClick(self, button, down, value, enable)
+    if value ~= nil then
+        self:SetChecked(value)
+    end
+    if value ~= nil or enable == nil then
+        NPT.acct[self:GetName()] = self:GetChecked()
+    end
+    if enable ~= nil and not enable then
+        self:Disable()
+    elseif enable then
+        self:Enable()
+    end
+    local small = strfind(self.label:GetFontObject():GetName(), "Small")
+    --print(self.label:GetFontObject():GetName() .. ":" .. tostring(small) .. ":Small")
+    if small then
+        small = "Small"
+    else
+        small = ""
+    end
+    if NPT.acct[self:GetName()] ~= NPTacct[self:GetName()] then
+        self.label:SetFontObject("GameFontNormal" .. small)
+    elseif self:IsEnabled() then
+        self.label:SetFontObject("GameFontHighlight" .. small)
+    else
+        self.label:SetFontObject("GameFontDisable" .. small)
+    end
+    --print(GetServerTime() .. " NPTframe." .. self:GetName() .. "(): NPT.acct." .. self:GetName() .. "=" .. tostring(NPT.acct[self:GetName()]))
+end
 function NPTframe:Initialize()
     NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
-    --print(GetServerTime() .. " NPTframe:Initialize(): NPTacct.addonsEnabled=" .. tostring(NPTacct.addonsEnabled))
+    --print(GetServerTime() .. " NPTframe:Initialize(): NPTacct.enableNeutral=" .. tostring(NPTacct.enableNeutral))
     self:cancel() -- simulate options cancel so panel variables are reset
     self.name = GetAddOnMetadata("NamePlatesThreat", "Title")
 
@@ -406,62 +434,60 @@ function NPTframe:Initialize()
     self.subTitle:SetText(GetAddOnMetadata("NamePlatesThreat", "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
     self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
-    self.addonsEnabled = self:CreateCheckButton("addonsEnabled", "Color Non-Friendly Nameplates", 1)
-    self.enablePlayers = self:CreateCheckButton("enablePlayers", "Color Player Characters", 1, 1)
-    self.enableNeutral = self:CreateCheckButton("enableNeutral", "Color Neutral Targets", 1, 2)
-    self.enableNoGroup = self:CreateCheckButton("enableNoGroup", "Color Out of Combat", 1, 3)
-
-    self.gradientColor, self.gradientDelay = self:CreateCheckSlider("gradientColor", "Color Gradient Delay in Seconds", "gradientDelay", 0, 1, 2, true)
-    
-    self.nonGroupColor = self:CreateColorSwatch("nonGroupColor", "Target is Out of Combat", 4, 0)
-    self.youTank7color = self:CreateColorSwatch("youTank7color", "Healers have High Threat", 4, 1)
-    self.youTank0color = self:CreateColorSwatch("youTank0color", "Damage has High Threat", 4, 2)
-    self.youTank2color = self:CreateColorSwatch("youTank2color", "You have the Low Threat", 4, 3)
-    self.youTank3color = self:CreateColorSwatch("youTank3color", "You have the High Threat", 4, 4)
-    self.youTank5color = self:CreateColorSwatch("youTank5color", "Tanks have High Threat", 4, 5)
-
-    self.forcingUnique = self:CreateCheckButton("forcingUnique", "Unique Colors Forced Tanking", 8)
-    self.youTank6color = self:CreateColorSwatch("youTank6color", "Healers have Low Threat", 8, 1)
-    self.youTank1color = self:CreateColorSwatch("youTank1color", "Damage has Low Threat", 8, 2)
-    self.youTank4color = self:CreateColorSwatch("youTank4color", "Tanks have Low Threat", 8, 3)
-
-    self.nonTankUnique = self:CreateCheckButton("nonTankUnique", "Unique Colors as Non-Tank Role", 4, nil, true)
-    self.nonTank7color = self:CreateColorSwatch("nonTank7color", "Healers have High Threat", 4, 1, true)
-    self.nonTank3color = self:CreateColorSwatch("nonTank3color", "You have the High Threat", 4, 2, true)
-    self.nonTank2color = self:CreateColorSwatch("nonTank2color", "Damage has Low Threat", 4, 3, true)
-    self.nonTank0color = self:CreateColorSwatch("nonTank0color", "Damage has High Threat", 4, 4, true)
-    self.nonTank5color = self:CreateColorSwatch("nonTank5color", "Tanks have High Threat", 4, 5, true)
-
-    self.nonTankForced = self:CreateCheckButton("nonTankForced", "Unique Colors Forced Non-Tank", 8, nil, true)
-    self.nonTank6color = self:CreateColorSwatch("nonTank6color", "Healers have Low Threat", 8, 1, true)
-    self.nonTank1color = self:CreateColorSwatch("nonTank1color", "You have the Low Threat", 8, 2, true)
-    self.nonTank4color = self:CreateColorSwatch("nonTank4color", "Tanks have Low Threat", 8, 3, true)
-
-    self.addonsEnabled:SetScript("PostClick", function(self, button, down, value)
-        if value ~= nil then
-	    self:SetChecked(value)
-	    self:Enable()
-	end
-        NPT.acct.addonsEnabled = self:GetChecked()
-	if NPT.acct.addonsEnabled ~= NPTacct.addonsEnabled then
-	    self.label:SetFontObject("GameFontNormalSmall")
-	else
-	    self.label:SetFontObject("GameFontHighlightSmall")
-	end
-	--print(GetServerTime() .. " NPTframe.addonsEnabled(): NPT.acct.addonsEnabled=" .. tostring(NPT.acct.addonsEnabled))
+    self.addonsEnabled = self:CheckButtonCreate("addonsEnabled", "Color Non-Friendly Nameplates", 1)
+    self.addonsEnabled:SetScript("PostClick", function(self, button, down, value, enable)
+        NPTframe.CheckButtonPostClick(self, button, down, value, enable)
+	NPTframe.enablePlayers:GetScript("PostClick")(NPTframe.enablePlayers, nil, nil, nil, NPT.acct.addonsEnabled)
+	NPTframe.enableNeutral:GetScript("PostClick")(NPTframe.enableNeutral, nil, nil, nil, NPT.acct.addonsEnabled)
     end)
+
+    self.enablePlayers = self:CheckButtonCreate("enablePlayers", "Color Player Characters", 1, 1)
+    self.enablePlayers:SetScript("PostClick", NPTframe.CheckButtonPostClick)
+
+    self.enableNeutral = self:CheckButtonCreate("enableNeutral", "Color Neutral Targets", 1, 2)
+    self.enableNeutral:SetScript("PostClick", NPTframe.CheckButtonPostClick)
+
+    self.enableNoGroup = self:CheckButtonCreate("enableNoGroup", "Color Out of Combat", 1, 3)
+
+    self.gradientColor, self.gradientDelay = self:CheckSliderCreate("gradientColor", "Color Gradient Delay in Seconds", "gradientDelay", 0, 1, 2, true)
+    
+    self.nonGroupColor = self:ColorSwatchCreate("nonGroupColor", "Target is Out of Combat", 4, 0)
+    self.youTank7color = self:ColorSwatchCreate("youTank7color", "Healers have High Threat", 4, 1)
+    self.youTank0color = self:ColorSwatchCreate("youTank0color", "Damage has High Threat", 4, 2)
+    self.youTank2color = self:ColorSwatchCreate("youTank2color", "You have the Low Threat", 4, 3)
+    self.youTank3color = self:ColorSwatchCreate("youTank3color", "You have the High Threat", 4, 4)
+    self.youTank5color = self:ColorSwatchCreate("youTank5color", "Tanks have High Threat", 4, 5)
+
+    self.forcingUnique = self:CheckButtonCreate("forcingUnique", "Unique Colors Forced Tanking", 8)
+    self.youTank6color = self:ColorSwatchCreate("youTank6color", "Healers have Low Threat", 8, 1)
+    self.youTank1color = self:ColorSwatchCreate("youTank1color", "Damage has Low Threat", 8, 2)
+    self.youTank4color = self:ColorSwatchCreate("youTank4color", "Tanks have Low Threat", 8, 3)
+
+    self.nonTankUnique = self:CheckButtonCreate("nonTankUnique", "Unique Colors as Non-Tank Role", 4, nil, true)
+    self.nonTank7color = self:ColorSwatchCreate("nonTank7color", "Healers have High Threat", 4, 1, true)
+    self.nonTank3color = self:ColorSwatchCreate("nonTank3color", "You have the High Threat", 4, 2, true)
+    self.nonTank2color = self:ColorSwatchCreate("nonTank2color", "Damage has Low Threat", 4, 3, true)
+    self.nonTank0color = self:ColorSwatchCreate("nonTank0color", "Damage has High Threat", 4, 4, true)
+    self.nonTank5color = self:ColorSwatchCreate("nonTank5color", "Tanks have High Threat", 4, 5, true)
+
+    self.nonTankForced = self:CheckButtonCreate("nonTankForced", "Unique Colors Forced Non-Tank", 8, nil, true)
+    self.nonTank6color = self:ColorSwatchCreate("nonTank6color", "Healers have Low Threat", 8, 1, true)
+    self.nonTank1color = self:ColorSwatchCreate("nonTank1color", "You have the Low Threat", 8, 2, true)
+    self.nonTank4color = self:ColorSwatchCreate("nonTank4color", "Tanks have Low Threat", 8, 3, true)
+
     InterfaceOptions_AddCategory(self)
 end
-function NPTframe:CreateColorSwatch(newName, newText, mainRow, subRow, columnTwo)
+function NPTframe:ColorSwatchCreate(newName, newText, mainRow, subRow, columnTwo)
     local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
     newObject.label = _G[newName .. "Text"]
     local rowX, rowY, colX = 10, 22.65, 0
     if subRow then
-	newObject.label:SetFontObject("GameFontHighlightSmall")
+        newObject.label:SetFontObject("GameFontDisableSmall")
         rowY = rowY*subRow
     else
+        newObject.label:SetFontObject("GameFontDisable")
         rowX = 0
-	rowY = 0
+        rowY = 0
     end
     rowY = 34*mainRow + rowY
     if columnTwo then
@@ -484,16 +510,17 @@ function NPTframe:CreateColorSwatch(newName, newText, mainRow, subRow, columnTwo
     newObject:Disable()
     return newObject
 end
-function NPTframe:CreateCheckButton(newName, newText, mainRow, subRow, columnTwo)
+function NPTframe:CheckButtonCreate(newName, newText, mainRow, subRow, columnTwo)
     local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
     newObject.label = _G[newName .. "Text"]
     local rowX, rowY, colX = 10, 22.65, 0
     if subRow then
-	newObject.label:SetFontObject("GameFontHighlightSmall")
+        newObject.label:SetFontObject("GameFontDisableSmall")
         rowY = rowY*subRow
     else
+        newObject.label:SetFontObject("GameFontDisable")
         rowX = 0
-	rowY = 0
+        rowY = 0
     end
     rowY = 34*mainRow + rowY
     if columnTwo then
@@ -507,7 +534,7 @@ function NPTframe:CreateCheckButton(newName, newText, mainRow, subRow, columnTwo
     newObject:Disable()
     return newObject
 end
-function NPTframe:CreateCheckSlider(newCheck, newText, newSlider, minVal, maxVal, mainRow, columnTwo)
+function NPTframe:CheckSliderCreate(newCheck, newText, newSlider, minVal, maxVal, mainRow, columnTwo)
     local newCheck = CreateFrame("CheckButton", newCheck, self, "InterfaceOptionsCheckButtonTemplate")
     local newSlider = CreateFrame("Slider", newSlider, self, "OptionsSliderTemplate")
     local rowY, colX = 34*mainRow, 0
@@ -520,23 +547,25 @@ function NPTframe:CreateCheckSlider(newCheck, newText, newSlider, minVal, maxVal
     newSlider:SetValueStep(maxVal/20 - minVal/20)
     newSlider:SetObeyStepOnDrag(true)
     newSlider.low = _G[newSlider:GetName() .. "Low"]
+    newSlider.low:SetFontObject("GameFontDisableSmall")
     newSlider.low:SetText(minVal)
     newSlider.high = _G[newSlider:GetName() .. "High"]
+    newSlider.high:SetFontObject("GameFontDisableSmall")
     newSlider.high:SetText(maxVal)
     newSlider.text = _G[newSlider:GetName() .. "Text"]
     newSlider.text:ClearAllPoints()
     newSlider.text:SetPoint("LEFT", self, "TOPLEFT", 42+colX, -69.3-rowY)
     newSlider.text:SetPoint("RIGHT", self, "TOPRIGHT", -318+colX, -69.3-rowY)
-    newSlider.text:SetFontObject("GameFontHighlightSmall")
-    newSlider.text:SetText(minVal + maxVal/2 - minVal/2)
+    newSlider.text:SetFontObject("GameFontDisableSmall")
+    newSlider.text:SetText("?")
     newCheck:SetPoint("LEFT", self, "TOPLEFT", 14+colX, -59.3-rowY)
     newCheck:SetHitRectInsets(0, 0, 0, 0)
     newCheck.label = _G[newCheck:GetName() .. "Text"]
     newCheck.label:SetPoint("LEFT", self, "TOPLEFT", 42+colX, -48.3-rowY)
     newCheck.label:SetPoint("RIGHT", self, "TOPRIGHT", -318+colX, -48.3-rowY)
-    newCheck.label:SetJustifyH("CENTER")
+    newCheck.label:SetFontObject("GameFontDisableSmall")
     newCheck.label:SetText(newText)
-    newCheck.label:SetFontObject("GameFontHighlightSmall")
+    newCheck.label:SetJustifyH("CENTER")
     newCheck.slider = newSlider
     newCheck:Disable()
     newSlider:Disable()
