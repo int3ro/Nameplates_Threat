@@ -354,8 +354,8 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
            event == "PET_DISMISS_START" or event == "UNIT_PET" then
         NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
         if event == "PLAYER_ENTERING_WORLD" then
-            --InterfaceOptionsFrame_OpenToCategory(NPTframe) -- for debugging only
-            --InterfaceOptionsFrame_OpenToCategory(NPTframe) -- must call it twice
+            InterfaceOptionsFrame_OpenToCategory(NPTframe) -- for debugging only
+            InterfaceOptionsFrame_OpenToCategory(NPTframe) -- must call it twice
         end
     end
 end);
@@ -387,7 +387,7 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
     NPTframe.enableNeutral:GetScript("PostClick")(NPTframe.enableNeutral, nil, nil, NPT.acct.enableNeutral)
 
     NPTframe.enableNoGroup:GetScript("PostClick")(NPTframe.enableNoGroup, nil, nil, NPT.acct.enableNoGroup)
-    --todo out of combat color swatch
+    NPTframe.nonGroupColor:GetScript("PostClick")(NPTframe.nonGroupColor, nil, nil, NPT.acct.nonGroupColor)
 
     NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, NPT.acct.gradientColor)
     NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, NPT.acct.gradientPrSec)
@@ -403,6 +403,42 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
 
     --print(GetServerTime() .. " NPTframe.refresh(): Finish")
 end
+function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
+    if enable ~= nil and not enable then
+        self:Disable()
+        self:SetBackdropColor(0.3, 0.3, 0.3)
+    elseif enable then
+        self:Enable()
+        self:SetBackdropColor(1.0, 1.0, 1.0)
+    end
+    if value ~= nil then
+        self.color:SetVertexColor(value.r, value.g, value.b)
+    end
+    local changed = {self.color:GetVertexColor()}
+    if value ~= nil or self:IsEnabled() and enable == nil then
+        if NPT.acct[self:GetName()] ~= nil then
+            NPT.acct[self:GetName()].r = changed.r
+            NPT.acct[self:GetName()].g = changed.g
+            NPT.acct[self:GetName()].b = changed.b
+        end
+    end
+    if NPT.acct[self:GetName()] ~= nil then
+        changed = (NPT.acct[self:GetName()].r ~= NPTacct[self:GetName()].r)
+                or (NPT.acct[self:GetName()].g ~= NPTacct[self:GetName()].g)
+                or (NPT.acct[self:GetName()].b ~= NPTacct[self:GetName()].b)
+    else
+        changed = false
+    end
+    self:SetChecked(false)
+    if changed then
+        self.text:SetFontObject("GameFontNormalSmall")
+    elseif self:IsEnabled() then
+        self.text:SetFontObject("GameFontHighlightSmall")
+    else
+        self.text:SetFontObject("GameFontDisableSmall")
+    end
+    --print(GetServerTime() .. " NPTframe." .. self:GetName() .. "(): NPT.acct." .. self:GetName() .. "=" .. tostring(NPT.acct[self:GetName()]))
+end
 function NPTframe.CheckButtonPostClick(self, button, down, value, enable)
     if enable ~= nil and not enable then
         self:Disable()
@@ -412,8 +448,10 @@ function NPTframe.CheckButtonPostClick(self, button, down, value, enable)
     if value ~= nil then
         self:SetChecked(value)
     end
-    if NPT.acct[self:GetName()] ~= nil and (value ~= nil or self:IsEnabled() and enable == nil) then
-        NPT.acct[self:GetName()] = self:GetChecked()
+    if value ~= nil or self:IsEnabled() and enable == nil then
+        if NPT.acct[self:GetName()] ~= nil then
+            NPT.acct[self:GetName()] = self:GetChecked()
+        end
     end
     local small = strfind(self.text:GetFontObject():GetName(), "Small")
     --print(self.text:GetFontObject():GetName() .. ":" .. tostring(small) .. ":Small")
@@ -434,8 +472,12 @@ end
 function NPTframe.SliderOnValueChanged(self, button, down, value, enable)
     if enable ~= nil and not enable then
         self:Disable()
+        self.low:SetFontObject("GameFontDisableSmall")
+        self.high:SetFontObject("GameFontDisableSmall")
     elseif enable then
         self:Enable()
+        self.low:SetFontObject("GameFontHighlightSmall")
+        self.high:SetFontObject("GameFontHighlightSmall")
     end
     if value ~= nil then
         self:SetValue(math.min(math.max(tonumber(self.low:GetText()), value), tonumber(self.high:GetText())))
@@ -452,13 +494,6 @@ function NPTframe.SliderOnValueChanged(self, button, down, value, enable)
         self.text:SetFontObject("GameFontHighlightSmall")
     else
         self.text:SetFontObject("GameFontDisableSmall")
-    end
-    if self:IsEnabled() then
-        self.low:SetFontObject("GameFontHighlightSmall")
-        self.high:SetFontObject("GameFontHighlightSmall")
-    else
-        self.low:SetFontObject("GameFontDisableSmall")
-        self.high:SetFontObject("GameFontDisableSmall")
     end
     --print(GetServerTime() .. " NPTframe." .. self:GetName() .. "(): NPT.acct." .. self:GetName() .. "=" .. tostring(NPT.acct[self:GetName()]))
 end
@@ -487,10 +522,10 @@ function NPTframe:Initialize()
         NPTframe.enableNeutral:GetScript("PostClick")(NPTframe.enableNeutral, nil, nil, nil, NPT.acct.addonsEnabled)
 
         NPTframe.enableNoGroup:GetScript("PostClick")(NPTframe.enableNoGroup, nil, nil, nil, NPT.acct.addonsEnabled)
-        --todo out of combat color swatch
+        --NPTframe.nonGroupColor:GetScript("PostClick")(NPTframe.nonGroupColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableNoGroup)
 
         NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, nil, NPT.acct.addonsEnabled)
-        NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.gradientColor)
+        --NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.gradientColor)
 
         NPTframe.forcingUnique:GetScript("PostClick")(NPTframe.forcingUnique, nil, nil, nil, NPT.acct.addonsEnabled)
         --todo forcing unique color swatches
@@ -511,14 +546,15 @@ function NPTframe:Initialize()
     self.enableNoGroup = self:CheckButtonCreate("enableNoGroup", "Color Out of Combat", 1, 3)
     self.enableNoGroup:SetScript("PostClick", function(self, button, down, value, enable)
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        --todo out of combat color swatch
+        NPTframe.nonGroupColor:GetScript("PostClick")(NPTframe.nonGroupColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableNoGroup)
     end)
     self.nonGroupColor = self:ColorSwatchCreate("nonGroupColor", "Target is Out of Combat", 4, 0)
+    self.nonGroupColor:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
     self.gradientColor, self.gradientPrSec = self:CheckSliderCreate("gradientColor", "Color Gradient Updates Per Second", "gradientPrSec", 1, 9, 2, true)
     self.gradientColor:SetScript("PostClick", function(self, button, down, value, enable)
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, nil, NPT.acct.gradientColor)
+        NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.gradientColor)
     end)
     self.gradientPrSec:SetScript("OnValueChanged", NPTframe.SliderOnValueChanged)
 
@@ -531,7 +567,11 @@ function NPTframe:Initialize()
     self.forcingUnique = self:CheckButtonCreate("forcingUnique", "Unique Colors Forced Tanking", 8)
     self.forcingUnique:SetScript("PostClick", function(self, button, down, value, enable)
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        --NPTframe.nonTankForced:GetScript("PostClick")(NPTframe.nonTankForced, nil, nil, NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
+        if (NPT.acct.forcingUnique and NPT.acct.nonTankUnique) ~= (NPTacct.forcingUnique and NPTacct.nonTankUnique) then
+            NPTframe.nonTankForced.text:SetFontObject("GameFontNormal")
+        else
+            NPTframe.nonTankForced.text:SetFontObject("GameFontHighlight")
+        end
         NPTframe.nonTankForced:SetChecked(NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
         --todo forcing unique color swatches
     end)
@@ -542,7 +582,11 @@ function NPTframe:Initialize()
     self.nonTankUnique = self:CheckButtonCreate("nonTankUnique", "Unique Colors as Non-Tank Role", 4, nil, true)
     self.nonTankUnique:SetScript("PostClick", function(self, button, down, value, enable)
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        --NPTframe.nonTankForced:GetScript("PostClick")(NPTframe.nonTankForced, nil, nil, NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
+        if (NPT.acct.forcingUnique and NPT.acct.nonTankUnique) ~= (NPTacct.forcingUnique and NPTacct.nonTankUnique) then
+            NPTframe.nonTankForced.text:SetFontObject("GameFontNormal")
+        else
+            NPTframe.nonTankForced.text:SetFontObject("GameFontHighlight")
+        end
         NPTframe.nonTankForced:SetChecked(NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
         --todo nontank unique color swatches
     end)
