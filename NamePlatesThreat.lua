@@ -47,6 +47,7 @@ NPT.offTanks = {}
 NPT.nonTanks = {}
 NPT.offHeals = {}
 local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking the addon
+NPTframe.lastSwatch = nil
 
 local function resetFrame(frame)
     if frame.threat then
@@ -199,7 +200,7 @@ local function updateThreatColor(frame)
         and UnitCanAttack("player", unit) and not CompactUnitFrame_IsTapDenied(frame)
         and (NPTacct.enablePlayers or not UnitIsPlayer(unit))
         and (NPTacct.enableNeutral or not (UnitReaction(unit, "player") > 3)
-            or not UnitIsFriend(unit .. "target", "player")) then
+            or UnitIsFriend(unit .. "target", "player")) then
 
         --[[Custom threat situation nameplate coloring:
            -1 = no threat data (monster not in combat).
@@ -324,7 +325,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
         NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
         NPTframe:Initialize()
     elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
-        local callback = function()
+        local callback, nameplate = function()
             for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
                 updateThreatColor(nameplate.UnitFrame)
             end
@@ -353,9 +354,15 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
            event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
            event == "PET_DISMISS_START" or event == "UNIT_PET" then
         NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
+	local nameplate
+        for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
+            resetFrame(nameplate.UnitFrame)
+        end
         if event == "PLAYER_ENTERING_WORLD" then
-            InterfaceOptionsFrame_OpenToCategory(NPTframe) -- for debugging only
-            InterfaceOptionsFrame_OpenToCategory(NPTframe) -- must call it twice
+            --InterfaceOptionsFrame_OpenToCategory(NPTframe) -- for debugging only
+            --InterfaceOptionsFrame_OpenToCategory(NPTframe) -- must call it twice
+        else
+            self:GetScript("OnEvent")(self, "UNIT_THREAT_SITUATION_UPDATE")
         end
     end
 end);
@@ -370,7 +377,6 @@ end);
 function NPTframe.okay()
     NPTacct = initVariables(NPT.acct) -- store panel fields into addon variables
     NPT:GetScript("OnEvent")(NPT, "PLAYER_SPECIALIZATION_CHANGED")
-    NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
     --print(GetServerTime() .. " NPTframe.okay(): NPTacct.enableNeutral=" .. tostring(NPTacct.enableNeutral))
 end
 function NPTframe.cancel()
@@ -405,6 +411,12 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
 end
 function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
     if enable ~= nil and not enable then
+        if NPTframe.lastSwatch and NPTframe.lastSwatch == self then
+            ColorPickerFrame:Hide()
+            NPTframe.lastSwatch:SetChecked(false)
+            ColorPickerFrame.cancelFunc(ColorPickerFrame.previousValues)
+            NPTframe.lastSwatch = nil
+        end
         self:Disable()
         self:SetBackdropColor(0.3, 0.3, 0.3)
     elseif enable then
@@ -414,14 +426,40 @@ function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
     if value ~= nil then
         self.color:SetVertexColor(value.r, value.g, value.b)
     end
-    local changed = {self.color:GetVertexColor()}
+    local r, g, b, changed = self.color:GetVertexColor()
+    changed = {}
+    changed.r, changed.g, changed.b = r, g, b
     if value ~= nil or self:IsEnabled() and enable == nil then
         if NPT.acct[self:GetName()] ~= nil then
-            NPT.acct[self:GetName()].r = changed.r
-            NPT.acct[self:GetName()].g = changed.g
-            NPT.acct[self:GetName()].b = changed.b
+            NPT.acct[self:GetName()].r = r
+            NPT.acct[self:GetName()].g = g
+            NPT.acct[self:GetName()].b = b
+        end
+        if value == nil then
+            ColorPickerFrame:Hide()
+            if NPTframe.lastSwatch then
+                NPTframe.lastSwatch:SetChecked(false)
+                ColorPickerFrame.cancelFunc(ColorPickerFrame.previousValues)
+            end
+            if self:GetChecked() then
+                NPTframe.lastSwatch = self
+                ColorPickerFrame:Show()
+                ColorPickerFrame.opacityFunc = nil
+                ColorPickerFrame.opacity = nil
+                ColorPickerFrame.hasOpacity = false
+                ColorPickerFrame.func = NPTframe.OnColorSelect
+                ColorPickerFrame.cancelFunc = NPTframe.OnColorSelect
+                ColorPickerFrame.previousValues = changed
+                ColorPickerFrame:SetColorRGB(r, g, b)
+            else
+                NPTframe.lastSwatch = nil
+            end
+        elseif NPTframe.lastSwatch == self and not ColorPickerFrame:IsVisible() then
+            NPTframe.lastSwatch:SetChecked(false)
+            NPTframe.lastSwatch = nil
         end
     end
+    --print(GetServerTime() .. " NPTframe." .. self:GetName() .. "(): " .. tostring(r) .. " " .. tostring(g) .. " " .. tostring(b))
     if NPT.acct[self:GetName()] ~= nil then
         changed = (NPT.acct[self:GetName()].r ~= NPTacct[self:GetName()].r)
                 or (NPT.acct[self:GetName()].g ~= NPTacct[self:GetName()].g)
@@ -429,7 +467,6 @@ function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
     else
         changed = false
     end
-    self:SetChecked(false)
     if changed then
         self.text:SetFontObject("GameFontNormalSmall")
     elseif self:IsEnabled() then
@@ -437,7 +474,19 @@ function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
     else
         self.text:SetFontObject("GameFontDisableSmall")
     end
-    --print(GetServerTime() .. " NPTframe." .. self:GetName() .. "(): NPT.acct." .. self:GetName() .. "=" .. tostring(NPT.acct[self:GetName()]))
+end
+function NPTframe.OnColorSelect(self, r, g, b)
+    if self and r and g and b then
+        return -- unsupported for now
+    elseif self then
+        r, g, b = self.r, self.g, self.b
+    else
+        r, g, b = ColorPickerFrame:GetColorRGB()
+    end
+    self = {}
+    self.r, self.g, self.b = r, g, b
+    --print(GetServerTime() .. " NPTframe.OnColorSelect(): " .. tostring(r) .. " " .. tostring(g) .. " " .. tostring(b))
+    NPTframe.lastSwatch:GetScript("PostClick")(NPTframe.lastSwatch, nil, nil, self)
 end
 function NPTframe.CheckButtonPostClick(self, button, down, value, enable)
     if enable ~= nil and not enable then
