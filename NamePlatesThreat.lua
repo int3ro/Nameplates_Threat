@@ -1,5 +1,5 @@
 local function initVariables(oldAcct) -- only the variables below are used by the addon
-    newAcct = {}
+    local newAcct, key, value = {}
     newAcct["addonsEnabled"] = true  -- color by threat those nameplates you can attack
     newAcct["enablePlayers"] = false -- also color nameplates for player characters
     newAcct["enableNeutral"] = false -- also color nameplates for neutral targets
@@ -31,7 +31,11 @@ local function initVariables(oldAcct) -- only the variables below are used by th
         --print("oldAcct:Begin")
         for key, value in pairs(newAcct) do
             if oldAcct[key] ~= nil and key ~= "addonsVersion" then
-                newAcct[key] = oldAcct[key]
+                if type(newAcct[key]) == "table" then
+                    newAcct[key].r, newAcct[key].g, newAcct[key].b = oldAcct[key].r, oldAcct[key].g, oldAcct[key].b
+                else
+                    newAcct[key] = oldAcct[key]
+                end
                 --print("newAcct:" .. key .. ":" .. tostring(newAcct[key]))
             end
         end -- any old variables we do not recognize by their key name are discarded now
@@ -354,7 +358,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
            event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
            event == "PET_DISMISS_START" or event == "UNIT_PET" then
         NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
-	local nameplate
+        local nameplate
         for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
             resetFrame(nameplate.UnitFrame)
         end
@@ -431,9 +435,9 @@ function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
     changed.r, changed.g, changed.b = r, g, b
     if value ~= nil or self:IsEnabled() and enable == nil then
         if NPT.acct[self:GetName()] ~= nil then
-            NPT.acct[self:GetName()].r = r
-            NPT.acct[self:GetName()].g = g
-            NPT.acct[self:GetName()].b = b
+            NPT.acct[self:GetName()].r = changed.r
+            NPT.acct[self:GetName()].g = changed.g
+            NPT.acct[self:GetName()].b = changed.b
         end
         if value == nil then
             ColorPickerFrame:Hide()
@@ -450,7 +454,7 @@ function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
                 ColorPickerFrame.func = NPTframe.OnColorSelect
                 ColorPickerFrame.cancelFunc = NPTframe.OnColorSelect
                 ColorPickerFrame.previousValues = changed
-                ColorPickerFrame:SetColorRGB(r, g, b)
+                ColorPickerFrame:SetColorRGB(changed.r, changed.g, changed.b)
             else
                 NPTframe.lastSwatch = nil
             end
@@ -459,7 +463,7 @@ function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
             NPTframe.lastSwatch = nil
         end
     end
-    --print(GetServerTime() .. " NPTframe." .. self:GetName() .. "(): " .. tostring(r) .. " " .. tostring(g) .. " " .. tostring(b))
+    --print(GetServerTime() .. " NPTframe." .. self:GetName() .. "(frame): " .. tostring(NPT.acct[self:GetName()].r) .. " " .. tostring(NPT.acct[self:GetName()].g) .. " " .. tostring(NPT.acct[self:GetName()].b))
     if NPT.acct[self:GetName()] ~= nil then
         changed = (NPT.acct[self:GetName()].r ~= NPTacct[self:GetName()].r)
                 or (NPT.acct[self:GetName()].g ~= NPTacct[self:GetName()].g)
@@ -467,6 +471,7 @@ function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
     else
         changed = false
     end
+    --print(GetServerTime() .. " NPTframe." .. self:GetName() .. "(saved): " .. tostring(NPTacct[self:GetName()].r) .. " " .. tostring(NPTacct[self:GetName()].g) .. " " .. tostring(NPTacct[self:GetName()].b))
     if changed then
         self.text:SetFontObject("GameFontNormalSmall")
     elseif self:IsEnabled() then
