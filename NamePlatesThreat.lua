@@ -260,18 +260,22 @@ local function updateThreatColor(frame)
                     fader = status - 1
                 end
                 if not NPTacct.forcingUnique then -- reuse threat tanking colors or forced fader/color 1
-                    if status == 1 then
-                        color = 2
-                    elseif status >= 7 then
+                    if status == 7 then
                         fader = 0
-                    elseif status >= 6 then
+                    elseif status == 6 then
                         color = 0
-                    elseif status >= 5 then
+                    elseif status == 5 then
                         fader = 3
-                    elseif status >= 4 then
+                    elseif status == 4 then
                         color = 3
-                    elseif status >= 3 then
+                    elseif status == 3 and NPT.playerRole ~= "TANK" and NPTacct.nonTankUnique then
+                        fader = 1
+                    elseif status == 2 and NPT.playerRole ~= "TANK" and NPTacct.nonTankUnique then
+                        color = 1
+                    elseif status == 3 then
                         fader = 2
+                    elseif status == 1 then
+                        color = 2
                     end
                 end
                 if NPT.playerRole == "TANK" or not NPTacct.nonTankUnique then
@@ -395,21 +399,32 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
     NPTframe.addonsEnabled:GetScript("PostClick")(NPTframe.addonsEnabled, nil, nil, NPT.acct.addonsEnabled, true)
     NPTframe.enablePlayers:GetScript("PostClick")(NPTframe.enablePlayers, nil, nil, NPT.acct.enablePlayers)
     NPTframe.enableNeutral:GetScript("PostClick")(NPTframe.enableNeutral, nil, nil, NPT.acct.enableNeutral)
-
     NPTframe.enableNoGroup:GetScript("PostClick")(NPTframe.enableNoGroup, nil, nil, NPT.acct.enableNoGroup)
-    NPTframe.nonGroupColor:GetScript("PostClick")(NPTframe.nonGroupColor, nil, nil, NPT.acct.nonGroupColor)
-
     NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, NPT.acct.gradientColor)
     NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, NPT.acct.gradientPrSec)
 
+    NPTframe.nonGroupColor:GetScript("PostClick")(NPTframe.nonGroupColor, nil, nil, NPT.acct.nonGroupColor)
+    NPTframe.youTank7color:GetScript("PostClick")(NPTframe.youTank7color, nil, nil, NPT.acct.youTank7color)
+    NPTframe.youTank0color:GetScript("PostClick")(NPTframe.youTank0color, nil, nil, NPT.acct.youTank0color)
+    NPTframe.youTank2color:GetScript("PostClick")(NPTframe.youTank2color, nil, nil, NPT.acct.youTank2color)
+    NPTframe.youTank3color:GetScript("PostClick")(NPTframe.youTank3color, nil, nil, NPT.acct.youTank3color)
+    NPTframe.youTank5color:GetScript("PostClick")(NPTframe.youTank5color, nil, nil, NPT.acct.youTank5color)
+
     NPTframe.forcingUnique:GetScript("PostClick")(NPTframe.forcingUnique, nil, nil, NPT.acct.forcingUnique)
-    --todo forcing unique color swatches
+    NPTframe.youTank6color:GetScript("PostClick")(NPTframe.youTank6color, nil, nil, NPT.acct.youTank6color)
+    NPTframe.youTank1color:GetScript("PostClick")(NPTframe.youTank1color, nil, nil, NPT.acct.youTank1color)
+    NPTframe.youTank4color:GetScript("PostClick")(NPTframe.youTank4color, nil, nil, NPT.acct.youTank4color)
 
     NPTframe.nonTankUnique:GetScript("PostClick")(NPTframe.nonTankUnique, nil, nil, NPT.acct.nonTankUnique)
-    --todo nontank unique color swatches
+    NPTframe.nonTank7color:GetScript("PostClick")(NPTframe.nonTank7color, nil, nil, NPT.acct.nonTank7color)
+    NPTframe.nonTank3color:GetScript("PostClick")(NPTframe.nonTank3color, nil, nil, NPT.acct.nonTank3color)
+    NPTframe.nonTank1color:GetScript("PostClick")(NPTframe.nonTank1color, nil, nil, NPT.acct.nonTank1color)
+    NPTframe.nonTank0color:GetScript("PostClick")(NPTframe.nonTank0color, nil, nil, NPT.acct.nonTank0color)
+    NPTframe.nonTank5color:GetScript("PostClick")(NPTframe.nonTank5color, nil, nil, NPT.acct.nonTank5color)
 
-    NPTframe.nonTankForced:GetScript("PostClick")(NPTframe.nonTankForced, nil, nil, NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
-    --todo nontank forced color swatches
+    NPTframe.nonTank6color:GetScript("PostClick")(NPTframe.nonTank6color, nil, nil, NPT.acct.nonTank6color)
+    NPTframe.nonTank2color:GetScript("PostClick")(NPTframe.nonTank2color, nil, nil, NPT.acct.nonTank2color)
+    NPTframe.nonTank4color:GetScript("PostClick")(NPTframe.nonTank4color, nil, nil, NPT.acct.nonTank4color)
 
     --print(GetServerTime() .. " NPTframe.refresh(): Finish")
 end
@@ -574,21 +589,20 @@ function NPTframe:Initialize()
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
         NPTframe.enablePlayers:GetScript("PostClick")(NPTframe.enablePlayers, nil, nil, nil, NPT.acct.addonsEnabled)
         NPTframe.enableNeutral:GetScript("PostClick")(NPTframe.enableNeutral, nil, nil, nil, NPT.acct.addonsEnabled)
-
         NPTframe.enableNoGroup:GetScript("PostClick")(NPTframe.enableNoGroup, nil, nil, nil, NPT.acct.addonsEnabled)
-        --NPTframe.nonGroupColor:GetScript("PostClick")(NPTframe.nonGroupColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableNoGroup)
-
         NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, nil, NPT.acct.addonsEnabled)
-        --NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.gradientColor)
+
+        NPTframe.youTank7color:GetScript("PostClick")(NPTframe.youTank7color, nil, nil, nil, NPT.acct.addonsEnabled)
+        NPTframe.youTank0color:GetScript("PostClick")(NPTframe.youTank0color, nil, nil, nil, NPT.acct.addonsEnabled)
+        NPTframe.youTank2color:GetScript("PostClick")(NPTframe.youTank2color, nil, nil, nil, NPT.acct.addonsEnabled)
+        NPTframe.youTank3color:GetScript("PostClick")(NPTframe.youTank3color, nil, nil, nil, NPT.acct.addonsEnabled)
+        NPTframe.youTank5color:GetScript("PostClick")(NPTframe.youTank5color, nil, nil, nil, NPT.acct.addonsEnabled)
 
         NPTframe.forcingUnique:GetScript("PostClick")(NPTframe.forcingUnique, nil, nil, nil, NPT.acct.addonsEnabled)
-        --todo forcing unique color swatches
 
         NPTframe.nonTankUnique:GetScript("PostClick")(NPTframe.nonTankUnique, nil, nil, nil, NPT.acct.addonsEnabled)
-        --todo nontank unique color swatches
 
         NPTframe.nonTankForced:GetScript("PostClick")(NPTframe.nonTankForced, nil, nil, nil, NPT.acct.addonsEnabled)
-        --todo nontank forced color swatches
     end)
 
     self.enablePlayers = self:CheckButtonCreate("enablePlayers", "Color Player Characters", 1, 1)
@@ -602,8 +616,6 @@ function NPTframe:Initialize()
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
         NPTframe.nonGroupColor:GetScript("PostClick")(NPTframe.nonGroupColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableNoGroup)
     end)
-    self.nonGroupColor = self:ColorSwatchCreate("nonGroupColor", "Target is Out of Combat", 4, 0)
-    self.nonGroupColor:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
     self.gradientColor, self.gradientPrSec = self:CheckSliderCreate("gradientColor", "Color Gradient Updates Per Second", "gradientPrSec", 1, 9, 2, true)
     self.gradientColor:SetScript("PostClick", function(self, button, down, value, enable)
@@ -612,55 +624,80 @@ function NPTframe:Initialize()
     end)
     self.gradientPrSec:SetScript("OnValueChanged", NPTframe.SliderOnValueChanged)
 
+    self.nonGroupColor = self:ColorSwatchCreate("nonGroupColor", "Target is Out of Combat", 4, 0)
+    self.nonGroupColor:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
     self.youTank7color = self:ColorSwatchCreate("youTank7color", "Healers have High Threat", 4, 1)
+    self.youTank7color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
     self.youTank0color = self:ColorSwatchCreate("youTank0color", "Damage has High Threat", 4, 2)
+    self.youTank0color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
     self.youTank2color = self:ColorSwatchCreate("youTank2color", "You have the Low Threat", 4, 3)
+    self.youTank2color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
     self.youTank3color = self:ColorSwatchCreate("youTank3color", "You have the High Threat", 4, 4)
+    self.youTank3color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
     self.youTank5color = self:ColorSwatchCreate("youTank5color", "Tanks have High Threat", 4, 5)
+    self.youTank5color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
     self.forcingUnique = self:CheckButtonCreate("forcingUnique", "Unique Colors Forced Tanking", 8)
     self.forcingUnique:SetScript("PostClick", function(self, button, down, value, enable)
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        if (NPT.acct.forcingUnique and NPT.acct.nonTankUnique) ~= (NPTacct.forcingUnique and NPTacct.nonTankUnique) then
-            NPTframe.nonTankForced.text:SetFontObject("GameFontNormal")
-        else
-            NPTframe.nonTankForced.text:SetFontObject("GameFontHighlight")
-        end
-        NPTframe.nonTankForced:SetChecked(NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
-        --todo forcing unique color swatches
+        NPTframe.youTank6color:GetScript("PostClick")(NPTframe.youTank6color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.forcingUnique)
+        NPTframe.youTank1color:GetScript("PostClick")(NPTframe.youTank1color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.forcingUnique)
+        NPTframe.youTank4color:GetScript("PostClick")(NPTframe.youTank4color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.forcingUnique)
+        NPTframe.nonTankForced:GetScript("PostClick")(NPTframe.nonTankForced, nil, nil, NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
     end)
     self.youTank6color = self:ColorSwatchCreate("youTank6color", "Healers have Low Threat", 8, 1)
+    self.youTank6color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
     self.youTank1color = self:ColorSwatchCreate("youTank1color", "Damage has Low Threat", 8, 2)
+    self.youTank1color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
     self.youTank4color = self:ColorSwatchCreate("youTank4color", "Tanks have Low Threat", 8, 3)
+    self.youTank4color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
     self.nonTankUnique = self:CheckButtonCreate("nonTankUnique", "Unique Colors as Non-Tank Role", 4, nil, true)
     self.nonTankUnique:SetScript("PostClick", function(self, button, down, value, enable)
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        if (NPT.acct.forcingUnique and NPT.acct.nonTankUnique) ~= (NPTacct.forcingUnique and NPTacct.nonTankUnique) then
-            NPTframe.nonTankForced.text:SetFontObject("GameFontNormal")
-        else
-            NPTframe.nonTankForced.text:SetFontObject("GameFontHighlight")
-        end
-        NPTframe.nonTankForced:SetChecked(NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
-        --todo nontank unique color swatches
+        NPTframe.nonTank7color:GetScript("PostClick")(NPTframe.nonTank7color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.nonTankUnique)
+        NPTframe.nonTank0color:GetScript("PostClick")(NPTframe.nonTank0color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.nonTankUnique)
+        NPTframe.nonTank1color:GetScript("PostClick")(NPTframe.nonTank1color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.nonTankUnique)
+        NPTframe.nonTank3color:GetScript("PostClick")(NPTframe.nonTank3color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.nonTankUnique)
+        NPTframe.nonTank5color:GetScript("PostClick")(NPTframe.nonTank5color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.nonTankUnique)
+        NPTframe.nonTankForced:GetScript("PostClick")(NPTframe.nonTankForced, nil, nil, NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
     end)
     self.nonTank7color = self:ColorSwatchCreate("nonTank7color", "Healers have High Threat", 4, 1, true)
-    self.nonTank3color = self:ColorSwatchCreate("nonTank3color", "You have the High Threat", 4, 2, true)
-    self.nonTank2color = self:ColorSwatchCreate("nonTank2color", "Damage has Low Threat", 4, 3, true)
-    self.nonTank0color = self:ColorSwatchCreate("nonTank0color", "Damage has High Threat", 4, 4, true)
+    self.nonTank7color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
+    self.nonTank0color = self:ColorSwatchCreate("nonTank0color", "You have the High Threat", 4, 2, true)
+    self.nonTank0color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
+    self.nonTank1color = self:ColorSwatchCreate("nonTank1color", "You have the Low Threat", 4, 3, true)
+    self.nonTank1color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
+    self.nonTank3color = self:ColorSwatchCreate("nonTank3color", "Damage has High Threat", 4, 4, true)
+    self.nonTank3color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
     self.nonTank5color = self:ColorSwatchCreate("nonTank5color", "Tanks have High Threat", 4, 5, true)
+    self.nonTank5color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
     self.nonTankForced = self:CheckButtonCreate("nonTankForced", "Unique Colors Forced Non-Tank", 8, nil, true)
     self.nonTankForced:SetScript("PostClick", function(self, button, down, value, enable)
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        value = self:GetChecked()
-        NPTframe.forcingUnique:GetScript("PostClick")(NPTframe.forcingUnique, nil, nil, value)
-        NPTframe.nonTankUnique:GetScript("PostClick")(NPTframe.nonTankUnique, nil, nil, value)
-        --todo nontank forced color swatches
+        if value == nil and enable == nil then
+            value = self:GetChecked()
+            NPTframe.forcingUnique:GetScript("PostClick")(NPTframe.forcingUnique, nil, nil, value)
+            NPTframe.nonTankUnique:GetScript("PostClick")(NPTframe.nonTankUnique, nil, nil, value)
+        end
+        if (NPT.acct.forcingUnique and NPT.acct.nonTankUnique) ~= (NPTacct.forcingUnique and NPTacct.nonTankUnique) then
+            NPTframe.nonTankForced.text:SetFontObject("GameFontNormal")
+        elseif self:IsEnabled() then
+            NPTframe.nonTankForced.text:SetFontObject("GameFontHighlight")
+        else
+            NPTframe.nonTankForced.text:SetFontObject("GameFontDisable")
+        end
+        NPTframe.nonTank6color:GetScript("PostClick")(NPTframe.nonTank6color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
+        NPTframe.nonTank2color:GetScript("PostClick")(NPTframe.nonTank2color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
+        NPTframe.nonTank4color:GetScript("PostClick")(NPTframe.nonTank4color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
     end)
     self.nonTank6color = self:ColorSwatchCreate("nonTank6color", "Healers have Low Threat", 8, 1, true)
-    self.nonTank1color = self:ColorSwatchCreate("nonTank1color", "You have the Low Threat", 8, 2, true)
+    self.nonTank6color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
+    self.nonTank2color = self:ColorSwatchCreate("nonTank2color", "Damage has Low Threat", 8, 2, true)
+    self.nonTank2color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
     self.nonTank4color = self:ColorSwatchCreate("nonTank4color", "Tanks have Low Threat", 8, 3, true)
+    self.nonTank4color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
     InterfaceOptions_AddCategory(self)
     --print(GetServerTime() .. " NPTframe:Initialize(): NPTacct.enableNeutral=" .. tostring(NPTacct.enableNeutral))
