@@ -198,7 +198,7 @@ local function threatSituation(monster)
     return threatStatus, tankValue, offTankValue, playerValue, nonTankValue, offHealValue
 end
 
-local function updateThreatColor(frame)
+local function updateThreatColor(frame, status, tank, offtank, player, nontank, offheal)
     local unit, ratio = frame.unit, 0
 
     if NPTacct.addonsEnabled -- only color nameplates you can attack if addon is active
@@ -216,8 +216,12 @@ local function updateThreatColor(frame)
            +6 = group healer is tanking by force.
            +7 = group healer is tanking by threat.
         ]]-- situation 0 to 3 flipped later as nontank.
-        local status, tank, offtank, player, nontank, offheal = threatSituation(unit)
 
+        if not status then
+            status, tank, offtank, player, nontank, offheal = threatSituation(unit)
+        else
+            unit = nil --indicates we fetched threat values from provided inputs
+        end
         -- compare highest group threat with tank for color gradient if enabled
         if NPTacct.gradientColor and status > -1 then
             if NPT.playerRole == "TANK" then
@@ -240,80 +244,78 @@ local function updateThreatColor(frame)
             end
             ratio = math.min(ratio, 1)
         end
-        if status > -1 and NPT.playerRole ~= "TANK" and status < 4 then
+        if not unit then
+            unit = frame.unit --no need to flip status when fetched from inputs
+        elseif status > -1 and NPT.playerRole ~= "TANK" and status < 4 then
             status = 3 - status
         end -- flip colors when not a tank role and no group tanks or healers are tanking
-
-        -- only recalculate color when situation was actually changed with gradient toward sibling color
-        if not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= ratio then
-            local color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
-            if UnitIsPlayer(unit) then
-                color = NPTacct.pvPlayerColor
-            elseif UnitReaction(unit, "player") > 3 then
-                color = NPTacct.neutralsColor
-            end
-            local fader = color
-
-            if status > -1 then -- determine colors depending on threat situation odd/even
-                color = status
-                if status % 2 == 0 then
-                    fader = status + 1
-                else
-                    fader = status - 1
-                end
-                if not NPTacct.forcingUnique then -- reuse threat tanking colors or forced fader/color 1
-                    if status == 7 then
-                        fader = 0
-                    elseif status == 6 then
-                        color = 0
-                    elseif status == 5 then
-                        fader = 3
-                    elseif status == 4 then
-                        color = 3
-                    elseif status == 3 and NPT.playerRole ~= "TANK" and NPTacct.nonTankUnique then
-                        fader = 1
-                    elseif status == 2 and NPT.playerRole ~= "TANK" and NPTacct.nonTankUnique then
-                        color = 1
-                    elseif status == 3 then
-                        fader = 2
-                    elseif status == 1 then
-                        color = 2
-                    end
-                end
-                if NPT.playerRole == "TANK" or not NPTacct.nonTankUnique then
-                    color = NPTacct["youTank" .. color .. "color"]
-                    fader = NPTacct["youTank" .. fader .. "color"]
-                else
-                    color = NPTacct["nonTank" .. color .. "color"]
-                    fader = NPTacct["nonTank" .. fader .. "color"]
-                end
-            elseif not NPTacct.enableNoGroup then
-                resetFrame(frame) -- reset frame if monster not fighting group
-                return
-            end
-            if not frame.threat then
-                frame.threat = {
-                    ["color"] = {},
-                    ["previousColor"] = {},
-                };
-            end
-            frame.threat.lastStatus = status
-            frame.threat.lastRatio = ratio
-
-            if NPTacct.gradientColor and ratio > 0 then
-                frame.threat.color.r = (color.r + (fader.r - color.r) * ratio) / 255
-                frame.threat.color.g = (color.g + (fader.g - color.g) * ratio) / 255
-                frame.threat.color.b = (color.b + (fader.b - color.b) * ratio) / 255
-            else -- skip fading color by a linear gradient toward the fader
-                frame.threat.color.r = color.r / 255
-                frame.threat.color.g = color.g / 255
-                frame.threat.color.b = color.b / 255
-            end
-            updateHealthColor(frame, true)
-        end
-    else
-        resetFrame(frame)
     end
+    if not status or not NPTacct.enableNoGroup and NPT.thisUpdate and status < 0 then
+        resetFrame(frame) -- only recolor when situation was changed with gradient toward sibling color
+    elseif not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= ratio then
+        local color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
+        if UnitIsPlayer(unit) then
+            color = NPTacct.pvPlayerColor
+        elseif UnitReaction(unit, "player") > 3 then
+            color = NPTacct.neutralsColor
+        end
+        local fader = color
+
+        if status > -1 then -- determine colors depending on threat situation odd/even
+            color = status
+            if status % 2 == 0 then
+                fader = status + 1
+            else
+                fader = status - 1
+            end
+            if not NPTacct.forcingUnique then -- reuse threat tanking colors or forced fader/color 1
+                if status == 7 then
+                    fader = 0
+                elseif status == 6 then
+                    color = 0
+                elseif status == 5 then
+                    fader = 3
+                elseif status == 4 then
+                    color = 3
+                elseif status == 3 and NPT.playerRole ~= "TANK" and NPTacct.nonTankUnique then
+                    fader = 1
+                elseif status == 2 and NPT.playerRole ~= "TANK" and NPTacct.nonTankUnique then
+                    color = 1
+                elseif status == 3 then
+                    fader = 2
+                elseif status == 1 then
+                    color = 2
+                end
+            end
+            if NPT.playerRole == "TANK" or not NPTacct.nonTankUnique then
+                color = NPTacct["youTank" .. color .. "color"]
+                fader = NPTacct["youTank" .. fader .. "color"]
+            else
+                color = NPTacct["nonTank" .. color .. "color"]
+                fader = NPTacct["nonTank" .. fader .. "color"]
+            end
+        end
+        if not frame.threat then
+            frame.threat = {
+                ["color"] = {},
+                ["previousColor"] = {},
+            };
+        end
+        frame.threat.lastStatus = status
+        frame.threat.lastRatio = ratio
+
+        if NPTacct.gradientColor and ratio > 0 then
+            frame.threat.color.r = (color.r + (fader.r - color.r) * ratio) / 255
+            frame.threat.color.g = (color.g + (fader.g - color.g) * ratio) / 255
+            frame.threat.color.b = (color.b + (fader.b - color.b) * ratio) / 255
+        else -- skip fading color by a linear gradient toward the fader
+            frame.threat.color.r = color.r / 255
+            frame.threat.color.g = color.g / 255
+            frame.threat.color.b = color.b / 255
+        end
+        updateHealthColor(frame, true)
+    end
+    return frame, status, tank, offtank, player, nontank, offheal
 end
 
 -- The color is only going to be reset after it was actually changed.
@@ -334,38 +336,12 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "NamePlatesThreat" then
         NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
         NPTframe:Initialize()
-    elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "PLAYER_REGEN_ENABLED" then
-        local callback, nameplate = function()
-            for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
-                updateThreatColor(nameplate.UnitFrame)
-            end
-            NPT.thisUpdate = 0
-        end
-        if event == "UNIT_THREAT_SITUATION_UPDATE" then
-            callback()
-        else
-            C_Timer.NewTimer(5.0, callback)
-        end -- to ensure colors update when mob is back at their spawn
-    elseif event == "NAME_PLATE_UNIT_ADDED" then
-        local callback = function()
-            local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
-            if nameplate then
-                updateThreatColor(nameplate.UnitFrame)
-            end
-        end
-        callback()
-        C_Timer.NewTimer(0.3, callback)
-    elseif event == "NAME_PLATE_UNIT_REMOVED" then
-        local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
-        if nameplate then
-            resetFrame(nameplate.UnitFrame)
-        end
-    elseif event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
-           event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
+    elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
+           event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
            event == "PET_DISMISS_START" or event == "UNIT_PET" then
         NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
-        local nameplate
-        for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
+        local key, nameplate
+        for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
             resetFrame(nameplate.UnitFrame)
         end
         if event == "PLAYER_ENTERING_WORLD" then
@@ -373,6 +349,38 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
             --InterfaceOptionsFrame_OpenToCategory(NPTframe) --must call it twice
         else
             self:GetScript("OnEvent")(self, "UNIT_THREAT_SITUATION_UPDATE")
+        end
+    elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" or
+           event == "PLAYER_REGEN_ENABLED" then
+        local callback = function()
+            local nameplates, key, nameplate = {}
+            if InCombatLockdown() then
+                NPT.thisUpdate = nil -- to force enable non combat colors while fighting
+            end
+            for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
+                nameplate = {updateThreatColor(nameplate.UnitFrame)}
+                if not NPTacct.enableNoGroup and NPT.thisUpdate and nameplate[2] then
+                    if nameplate[2] < 0 then
+                        table.insert(nameplates, nameplate) -- store for recoloring later
+                    else
+                        NPT.thisUpdate = nil -- meaning we must recolor non combat plates
+                    end
+                end
+            end
+            for key, nameplate in pairs(nameplates) do
+                updateThreatColor(unpack(nameplate)) -- recolor previously stored plates
+            end
+            NPT.thisUpdate = 0
+        end
+        if event == "PLAYER_REGEN_ENABLED" then
+            C_Timer.NewTimer(5.0, callback)
+        else -- to ensure colors update after combat when mob is back at their spawn
+            callback()
+        end
+    elseif event == "NAME_PLATE_UNIT_REMOVED" then
+        local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
+        if nameplate then
+            resetFrame(nameplate.UnitFrame)
         end
     end
 end);
@@ -542,12 +550,12 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
     NPTframe.addonsEnabled:GetScript("PostClick")(NPTframe.addonsEnabled, nil, nil, NPT.acct.addonsEnabled, true)
     NPTframe.enableNoGroup:GetScript("PostClick")(NPTframe.enableNoGroup, nil, nil, NPT.acct.enableNoGroup)
     NPTframe.enablePlayers:GetScript("PostClick")(NPTframe.enablePlayers, nil, nil, NPT.acct.enablePlayers)
-    NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, NPT.acct.gradientColor)
-    NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, NPT.acct.gradientPrSec)
-
     NPTframe.pvPlayerColor:GetScript("PostClick")(NPTframe.pvPlayerColor, nil, nil, NPT.acct.pvPlayerColor)
     NPTframe.neutralsColor:GetScript("PostClick")(NPTframe.neutralsColor, nil, nil, NPT.acct.neutralsColor)
     NPTframe.hostilesColor:GetScript("PostClick")(NPTframe.hostilesColor, nil, nil, NPT.acct.hostilesColor)
+
+    NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, NPT.acct.gradientColor)
+    NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, NPT.acct.gradientPrSec)
 
     NPTframe.youTank7color:GetScript("PostClick")(NPTframe.youTank7color, nil, nil, NPT.acct.youTank7color)
     NPTframe.youTank0color:GetScript("PostClick")(NPTframe.youTank0color, nil, nil, NPT.acct.youTank0color)
@@ -595,6 +603,9 @@ function NPTframe:Initialize()
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
         NPTframe.enableNoGroup:GetScript("PostClick")(NPTframe.enableNoGroup, nil, nil, nil, NPT.acct.addonsEnabled)
         NPTframe.enablePlayers:GetScript("PostClick")(NPTframe.enablePlayers, nil, nil, nil, NPT.acct.addonsEnabled)
+        NPTframe.neutralsColor:GetScript("PostClick")(NPTframe.neutralsColor, nil, nil, nil, NPT.acct.addonsEnabled)
+        NPTframe.hostilesColor:GetScript("PostClick")(NPTframe.hostilesColor, nil, nil, nil, NPT.acct.addonsEnabled)
+
         NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, nil, NPT.acct.addonsEnabled)
 
         NPTframe.youTank7color:GetScript("PostClick")(NPTframe.youTank7color, nil, nil, nil, NPT.acct.addonsEnabled)
@@ -610,18 +621,13 @@ function NPTframe:Initialize()
         NPTframe.nonTankForced:GetScript("PostClick")(NPTframe.nonTankForced, nil, nil, nil, NPT.acct.addonsEnabled)
     end)
 
-    self.enableNoGroup = self:CheckButtonCreate("enableNoGroup", "Color Out of Combat", "Enable coloring nameplates that are not fighting your group.", 1, 1)
-    self.enableNoGroup:SetScript("PostClick", function(self, button, down, value, enable)
-        NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        NPTframe.neutralsColor:GetScript("PostClick")(NPTframe.neutralsColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableNoGroup)
-        NPTframe.hostilesColor:GetScript("PostClick")(NPTframe.hostilesColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableNoGroup)
-        NPTframe.pvPlayerColor:GetScript("PostClick")(NPTframe.pvPlayerColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableNoGroup and NPT.acct.enablePlayers)
-    end)
+    self.enableNoGroup = self:CheckButtonCreate("enableNoGroup", "Color Out of Combat", "Enable coloring nameplates when group is not in combat.", 1, 1)
+    self.enableNoGroup:SetScript("PostClick", NPTframe.CheckButtonPostClick)
 
     self.enablePlayers = self:CheckButtonCreate("enablePlayers", "Color Player Characters", "Enable coloring nameplates of PvP flagged enemy players.", 1, 2)
     self.enablePlayers:SetScript("PostClick", function(self, button, down, value, enable)
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        NPTframe.pvPlayerColor:GetScript("PostClick")(NPTframe.pvPlayerColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableNoGroup and NPT.acct.enablePlayers)
+        NPTframe.pvPlayerColor:GetScript("PostClick")(NPTframe.pvPlayerColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enablePlayers)
     end)
 
     self.gradientColor, self.gradientPrSec = self:CheckSliderCreate("gradientColor", "Color Gradient Updates Per Second", "Enable fading of nameplates between high and low colors.", "gradientPrSec", 1, 9, 2, true)
