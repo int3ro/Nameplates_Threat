@@ -1,32 +1,32 @@
 local function initVariables(oldAcct) -- only the variables below are used by the addon
     local newAcct, key, value = {}
     newAcct["addonsEnabled"] = true  -- color by threat those nameplates you can attack
-    newAcct["enablePlayers"] = false -- also color nameplates for player characters
+    newAcct["enableNoFight"] = true  -- also color nameplates not fighting your group
     newAcct["enableOutside"] = false -- also color nameplates outside PvE instances
-    newAcct["enableNoFight"] = false -- also color nameplates not fighting your group
+    newAcct["enablePlayers"] = false -- also color nameplates for player characters
     newAcct["gradientColor"] = true  -- update nameplate color gradients (some CPU usage)
     newAcct["gradientPrSec"] = 5     -- update color gradients this many times per second
-    newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
-    newAcct["hostilesColor"] = {r=163, g= 48, b=201} -- violet hostile not in group fight
     newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
+    newAcct["hostilesColor"] = {r=163, g= 48, b=201} -- violet hostile not in group fight
+    newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
     newAcct["youTankCombat"] = true -- unique colors in combat instead of colors above
     newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
-    newAcct["youTank6color"] = {r=255, g=153, b=  0} -- orange healers tanking by force
-    newAcct["youTank5color"] = {r=  0, g=217, b=  0} -- green  group tanks tank by threat
-    newAcct["youTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force
-    newAcct["youTank3color"] = {r=176, g=176, b=176} -- gray   you are tanking by threat
-    newAcct["youTank2color"] = {r=255, g=255, b=120} -- yellow you are tanking by force
-    newAcct["youTank1color"] = {r=255, g=255, b=120} -- yellow others tanking by force
     newAcct["youTank0color"] = {r=255, g=153, b=  0} -- orange others tanking by threat
+    newAcct["youTank2color"] = {r=255, g=255, b=120} -- yellow you are tanking by force
+    newAcct["youTank3color"] = {r=176, g=176, b=176} -- gray   you are tanking by threat
+    newAcct["youTank5color"] = {r=  0, g=217, b=  0} -- green  group tanks tank by threat
+    newAcct["youTank6color"] = {r=255, g=153, b=  0} -- orange healers tanking by force
+    newAcct["youTank1color"] = {r=255, g=255, b=120} -- yellow others tanking by force
+    newAcct["youTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force
     newAcct["nonTankUnique"] = false -- unique nontank colors instead of flip colors above
     newAcct["nonTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
-    newAcct["nonTank6color"] = {r=255, g=153, b=  0} -- orange healers tanking by force
-    newAcct["nonTank5color"] = {r=  0, g=217, b=  0} -- green  group tanks tank by threat
-    newAcct["nonTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force
-    newAcct["nonTank3color"] = {r=176, g=176, b=176} -- gray   others tanking by threat
-    newAcct["nonTank2color"] = {r=255, g=255, b=120} -- yellow others tanking by force
-    newAcct["nonTank1color"] = {r=255, g=255, b=120} -- yellow you are tanking by force
     newAcct["nonTank0color"] = {r=255, g=153, b=  0} -- orange you are tanking by threat
+    newAcct["nonTank1color"] = {r=255, g=255, b=120} -- yellow you are tanking by force
+    newAcct["nonTank3color"] = {r=176, g=176, b=176} -- gray   others tanking by threat
+    newAcct["nonTank5color"] = {r=  0, g=217, b=  0} -- green  group tanks tank by threat
+    newAcct["nonTank6color"] = {r=255, g=153, b=  0} -- orange healers tanking by force
+    newAcct["nonTank2color"] = {r=255, g=255, b=120} -- yellow others tanking by force
+    newAcct["nonTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force
     newAcct["forcingUnique"] = false -- unique force colors instead of reuse threat colors
     newAcct["addonsVersion"] = GetAddOnMetadata("NamePlatesThreat", "Version")
 
