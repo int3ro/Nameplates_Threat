@@ -28,12 +28,11 @@ local function initVariables(oldAcct) -- only the variables below are used by th
     newAcct["nonTank2color"] = {r=255, g=255, b=120} -- yellow others tanking by force
     newAcct["nonTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force
     newAcct["forcingUnique"] = false -- unique force colors instead of reuse threat colors
-    newAcct["addonsVersion"] = GetAddOnMetadata("NamePlatesThreat", "Version")
 
     if oldAcct then -- override defaults with imported values if old keys match new keys
         --print("oldAcct:Begin")
         for key, value in pairs(newAcct) do
-            if oldAcct[key] ~= nil and key ~= "addonsVersion" then
+            if oldAcct[key] ~= nil then
                 if type(newAcct[key]) == "table" then
                     newAcct[key].r, newAcct[key].g, newAcct[key].b = oldAcct[key].r, oldAcct[key].g, oldAcct[key].b
                 else
@@ -53,6 +52,8 @@ NPT.playerRole = 0
 NPT.offTanks = {}
 NPT.nonTanks = {}
 NPT.offHeals = {}
+NPT.addonIndex = 0
+
 local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking the addon
 NPTframe.lastSwatch = nil
 
@@ -350,7 +351,10 @@ NPT:RegisterEvent("PET_DISMISS_START");
 NPT:RegisterEvent("UNIT_PET");
 NPT:RegisterEvent("ADDON_LOADED");
 NPT:SetScript("OnEvent", function(self, event, arg1)
-    if event == "ADDON_LOADED" and arg1 == "NamePlatesThreat" then
+    if event == "ADDON_LOADED" and string.upper(arg1) == string.upper("NamePlatesThreat") then
+        repeat
+            NPT.addonIndex = NPT.addonIndex + 1
+        until string.upper(GetAddOnInfo(NPT.addonIndex)) == string.upper(arg1)
         NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
         NPTframe:Initialize()
     elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
@@ -601,20 +605,20 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
 end
 function NPTframe:Initialize()
     self:cancel() -- simulate options cancel so panel variables are reset
-    self.name = GetAddOnMetadata("NamePlatesThreat", "Title")
+    self.name = GetAddOnMetadata(NPT.addonIndex, "Title")
 
     self.bigTitle = self:CreateFontString("bigTitle", "ARTWORK", "GameFontNormalLarge")
     self.bigTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -24)
     self.bigTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
     self.bigTitle:SetJustifyH("LEFT")
-    self.bigTitle:SetText(self.name .. " " .. NPTacct.addonsVersion .. " by " .. GetAddOnMetadata("NamePlatesThreat", "Author"))
+    self.bigTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Title") .. " " .. GetAddOnMetadata(NPT.addonIndex, "Version") .. " by " .. GetAddOnMetadata(NPT.addonIndex, "Author"))
     self.bigTitle:SetHeight(self.bigTitle:GetStringHeight() * 1)
 
     self.subTitle = self:CreateFontString("subTitle", "ARTWORK", "GameFontHighlightSmall")
     self.subTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -50)
     self.subTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -50)
     self.subTitle:SetJustifyH("LEFT")
-    self.subTitle:SetText(GetAddOnMetadata("NamePlatesThreat", "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
+    self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
     self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
     self.addonsEnabled = self:CheckButtonCreate("addonsEnabled", "Color Non-Friendly Nameplates", "Enable for AddOn to function.", 1)
