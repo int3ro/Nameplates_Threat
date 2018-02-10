@@ -147,50 +147,55 @@ local function threatSituation(monster)
     -- store if an offtank is tanking, or store their threat value if higher than others
     for _, unit in ipairs(NPT.offTanks) do
         isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-        if isTanking then
+        if UnitIsUnit(unit, monster .. "target") then
+            threatStatus = 5
+            tankValue = -1
+        elseif tankValue > -1 and isTanking then
             threatStatus = status + 2
             tankValue = threatValue
         elseif status and threatValue > offTankValue then
             offTankValue = threatValue
-        elseif threatStatus < 0 and UnitIsUnit(unit, monster .. "target") then
-            threatStatus = 5 -- ensure threat status if monster is targeting a tank
         end
     end
     -- store if the player is tanking, or store their threat value if higher than others
     isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
-    if isTanking then
+    if UnitIsUnit("player", monster .. "target") then
+        threatStatus = 3
+        tankValue = -1
+    elseif tankValue > -1 and isTanking then
         threatStatus = status
         tankValue = threatValue
     elseif status then
         playerValue = threatValue
-    elseif threatStatus < 0 and UnitIsUnit("player", monster .. "target") then
-        threatStatus = 3 -- ensure threat status if monster is targeting player
     end
     -- store if a non-tank is tanking, or store their threat value if higher than others
     for _, unit in ipairs(NPT.nonTanks) do
         isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-        if isTanking then
+        if UnitIsUnit(unit, monster .. "target") then
+            threatStatus = 0
+            tankValue = -1
+        elseif tankValue > -1 and isTanking then
             threatStatus = 3 - status
             tankValue = threatValue
         elseif status and threatValue > nonTankValue then
             nonTankValue = threatValue
-        elseif threatStatus < 0 and UnitIsUnit(unit, monster .. "target") then
-            threatStatus = 0 -- ensure threat status if monster is targeting nontank
         end
     end
     -- store if an offheal is tanking, or store their threat value if higher than others
     for _, unit in ipairs(NPT.offHeals) do
         isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-        if isTanking then
+        if UnitIsUnit(unit, monster .. "target") then
+            threatStatus = 7
+            tankValue = -1
+        elseif tankValue > -1 and isTanking then
             threatStatus = status + 4
             tankValue = threatValue
         elseif status and threatValue > offHealValue then
             offHealValue = threatValue
-        elseif threatStatus < 0 and UnitIsUnit(unit, monster .. "target") then
-            threatStatus = 7 -- ensure threat status if monster is targeting a healer
         end
     end
     if threatStatus > -1 and tankValue <= 0 then
+        tankValue = 0
         offTankValue = 0
         playerValue  = 0 -- clear threat values if tank was found through monster target
         nonTankValue = 0
@@ -332,6 +337,7 @@ end
 -- The color is only going to be reset after it was actually changed.
 hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
 
+NPT:RegisterEvent("UNIT_TARGET");
 NPT:RegisterEvent("PLAYER_REGEN_ENABLED");
 NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE");
 NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED");
@@ -362,7 +368,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
             self:GetScript("OnEvent")(self, "UNIT_THREAT_SITUATION_UPDATE")
         end
     elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" or
-           event == "PLAYER_REGEN_ENABLED" then
+           event == "PLAYER_REGEN_ENABLED" or event == "UNIT_TARGET" then
         local callback = function()
             local nameplates, key, nameplate = {}
             if InCombatLockdown() then
@@ -632,15 +638,12 @@ function NPTframe:Initialize()
     self.enableNoFight:SetScript("PostClick", NPTframe.CheckButtonPostClick)
 
     self.enableOutside = self:CheckButtonCreate("enableOutside", "Color Out of Dungeons", "Enable coloring nameplates outside PvE instanced zones.", 1, 2)
-    self.enableOutside:SetScript("PostClick", function(self, button, down, value, enable)
-        NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        NPTframe.enablePlayers:GetScript("PostClick")(NPTframe.enablePlayers, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableOutside)
-    end)
+    self.enableOutside:SetScript("PostClick", NPTframe.CheckButtonPostClick)
 
     self.enablePlayers = self:CheckButtonCreate("enablePlayers", "Color Player Characters", "Enable coloring nameplates of PvP flagged enemy players.", 1, 3)
     self.enablePlayers:SetScript("PostClick", function(self, button, down, value, enable)
         NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-        NPTframe.pvPlayerColor:GetScript("PostClick")(NPTframe.pvPlayerColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableOutside and NPT.acct.enablePlayers)
+        NPTframe.pvPlayerColor:GetScript("PostClick")(NPTframe.pvPlayerColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enablePlayers)
     end)
 
     self.gradientColor, self.gradientPrSec = self:CheckSliderCreate("gradientColor", "Color Gradient Updates Per Second", "Enable fading of nameplates between high and low colors.", "gradientPrSec", 1, 9, 3, true)
