@@ -10,7 +10,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["hostilesColor"] = {r=163, g= 48, b=201} -- violet hostile not in group fight
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
 	newAcct["youTankCombat"] = true -- unique colors in combat instead of colors above
-	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red	healers tanking by threat
+	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
 	newAcct["youTank0color"] = {r=255, g=153, b=  0} -- orange others tanking by threat
 	newAcct["youTank2color"] = {r=255, g=255, b=120} -- yellow you are tanking by force
 	newAcct["youTank3color"] = {r=176, g=176, b=176} -- gray   you are tanking by threat
@@ -19,7 +19,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["youTank1color"] = {r=255, g=255, b=120} -- yellow others tanking by force
 	newAcct["youTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force
 	newAcct["nonTankUnique"] = false -- unique nontank colors instead of flip colors above
-	newAcct["nonTank7color"] = {r=255, g=  0, b=  0} -- red	healers tanking by threat
+	newAcct["nonTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
 	newAcct["nonTank0color"] = {r=255, g=153, b=  0} -- orange you are tanking by threat
 	newAcct["nonTank1color"] = {r=255, g=255, b=120} -- yellow you are tanking by force
 	newAcct["nonTank3color"] = {r=176, g=176, b=176} -- gray   others tanking by threat
@@ -138,7 +138,7 @@ end
 
 local function threatSituation(monster)
 	local threatStatus = -1
-	local tankValue	=  0
+	local tankValue    =  0
 	local offTankValue =  0
 	local playerValue  =  0
 	local nonTankValue =  0
@@ -148,7 +148,7 @@ local function threatSituation(monster)
 	-- store if an offtank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offTanks) do
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if UnitIsUnit(unit, monster .. "target") then
+		if NPTacct.enablePlayers and UnitIsUnit(unit, monster .. "target") then
 			threatStatus = 5
 			tankValue = -1
 		elseif tankValue > -1 and isTanking then
@@ -160,7 +160,7 @@ local function threatSituation(monster)
 	end
 	-- store if the player is tanking, or store their threat value if higher than others
 	isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
-	if UnitIsUnit("player", monster .. "target") then
+	if NPTacct.enablePlayers and UnitIsUnit("player", monster .. "target") then
 		threatStatus = 3
 		tankValue = -1
 	elseif tankValue > -1 and isTanking then
@@ -172,7 +172,7 @@ local function threatSituation(monster)
 	-- store if a non-tank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.nonTanks) do
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if UnitIsUnit(unit, monster .. "target") then
+		if NPTacct.enablePlayers and UnitIsUnit(unit, monster .. "target") then
 			threatStatus = 0
 			tankValue = -1
 		elseif tankValue > -1 and isTanking then
@@ -185,7 +185,7 @@ local function threatSituation(monster)
 	-- store if an offheal is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offHeals) do
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if UnitIsUnit(unit, monster .. "target") then
+		if NPTacct.enablePlayers and UnitIsUnit(unit, monster .. "target") then
 			threatStatus = 7
 			tankValue = -1
 		elseif tankValue > -1 and isTanking then
@@ -222,10 +222,10 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 
 		--[[Custom threat situation nameplate coloring:
 		   -1 = no threat data (monster not in combat).
-			0 = a non tank is tanking by threat.
-			1 = a non tank is tanking by force.
-			2 = player tanking monster by force.
-			3 = player tanking monster by threat.
+		    0 = a non tank is tanking by threat.
+		    1 = a non tank is tanking by force.
+		    2 = player tanking monster by force.
+		    3 = player tanking monster by threat.
 		   +4 = another tank is tanking by force.
 		   +5 = another tank is tanking by threat.
 		   +6 = group healer is tanking by force.
@@ -304,6 +304,62 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 					color = 2
 				end
 			end
+-- Sjakal begin TODO: remove forced unique and reduce number of colors and use green when player is tank role
+			-- if NPT.playerRole == "TANK" then
+				-- if status == 0 then	-- others tanking by threat	orange to yellow
+					-- color = 0
+					-- if NPTacct.forcingUnique then fader = 1 else fader = 2 end
+				-- elseif status == 1 then	-- others tanking by force	yellow to orange
+					-- if NPTacct.forcingUnique then color = 1 else color = 2 end
+					-- fader = 0
+				-- elseif status == 2 then	-- you're tanking by force	gray to green
+					-- color = 2
+					-- fader = 3
+				-- elseif status == 3 then	-- you're tanking by threat	green to gray
+					-- color = 3
+					-- fader = 2
+				-- elseif status == 4 then	-- tanks tanking by force	yellow to gray
+					-- if NPTacct.forcingUnique then color = 4 else color = 2 end
+					-- fader = 5
+				-- elseif status == 5 then	-- tanks tanking by threat	gray to yellow
+					-- color = 5
+					-- if NPTacct.forcingUnique then fader = 4 else fader = 2 end
+				-- elseif status == 6 then	-- healer tanking by force	orange to red
+					-- if NPTacct.forcingUnique then color = 6 else color = 0 end
+					-- fader = 7
+				-- elseif status == 7 then	-- healer tanking by threat	red to orange
+					-- color = 7
+					-- if NPTacct.forcingUnique then fader = 6 else fader = 0 end
+				-- end
+			-- elseif NPTacct.nonTankUnique then
+				-- if status == 0 then	-- others tanking by threat	gray to yellow
+					-- color = 0
+					-- if NPTacct.forcingUnique then fader = 1 else fader = 2 end
+				-- elseif status == 1 then	-- others tanking by force	yellow to gray
+					-- if NPTacct.forcingUnique then color = 1 else color = 2 end
+					-- fader = 0
+				-- elseif status == 2 then	-- you're tanking by force	yellow to orange
+					-- color = 2
+					-- fader = 3
+				-- elseif status == 3 then	-- you're tanking by threat	orange to yellow
+					-- color = 3
+					-- fader = 2
+				-- elseif status == 4 then	-- tanks tanking by force	gray to green
+					-- if NPTacct.forcingUnique then color = 4 else color = 2 end
+					-- fader = 5
+				-- elseif status == 5 then	-- tanks tanking by threat	green to gray
+					-- color = 5
+					-- if NPTacct.forcingUnique then fader = 4 else fader = 2 end
+				-- elseif status == 6 then	-- healer tanking by force	orange to red
+					-- if NPTacct.forcingUnique then color = 6 else color = 0 end
+					-- fader = 7
+				-- elseif status == 7 then	-- healer tanking by threat	red to orange
+					-- color = 7
+					-- if NPTacct.forcingUnique then fader = 6 else fader = 0 end
+				-- end
+			-- else
+			-- end
+-- Sjakal finish
 			if NPT.playerRole == "TANK" or not NPTacct.nonTankUnique then
 				color = NPTacct["youTank" .. color .. "color"]
 				fader = NPTacct["youTank" .. fader .. "color"]
@@ -358,8 +414,8 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
 		NPTframe:Initialize()
 	elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
-		   event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
-		   event == "PET_DISMISS_START" or event == "UNIT_PET" then
+		event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
+		event == "PET_DISMISS_START" or event == "UNIT_PET" then
 		NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
 		local key, nameplate
 		for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
@@ -372,7 +428,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			self:GetScript("OnEvent")(self, "UNIT_THREAT_SITUATION_UPDATE")
 		end
 	elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" or
-		   event == "PLAYER_REGEN_ENABLED" or event == "UNIT_TARGET" then
+		event == "PLAYER_REGEN_ENABLED" or event == "UNIT_TARGET" then
 		local callback = function()
 			local nameplates, key, nameplate = {}
 			if InCombatLockdown() then
