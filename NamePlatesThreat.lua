@@ -28,6 +28,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["nonTank2color"] = {r=255, g=255, b=120} -- yellow others tanking by force
 	newAcct["nonTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force
 	newAcct["forcingUnique"] = false -- unique force colors instead of reuse threat colors
+	newAcct["colorByTarget"] = false -- also color nameplates depending on their target
 
 	if oldAcct then -- override defaults with imported values if old keys match new keys
 		--print("oldAcct:Begin")
@@ -148,50 +149,50 @@ local function threatSituation(monster)
 	-- store if an offtank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offTanks) do
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPTacct.enablePlayers and UnitIsUnit(unit, monster .. "target") then
+		if NPTacct.colorByTarget and UnitIsUnit(unit, monster .. "target") then
 			threatStatus = 5
 			tankValue = -1
-		elseif tankValue > -1 and isTanking then
+		elseif NPTacct.youTankCombat and tankValue > -1 and isTanking then
 			threatStatus = status + 2
 			tankValue = threatValue
-		elseif status and threatValue > offTankValue then
+		elseif NPTacct.youTankCombat and status and threatValue > offTankValue then
 			offTankValue = threatValue
 		end
 	end
 	-- store if the player is tanking, or store their threat value if higher than others
 	isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
-	if NPTacct.enablePlayers and UnitIsUnit("player", monster .. "target") then
+	if NPTacct.colorByTarget and UnitIsUnit("player", monster .. "target") then
 		threatStatus = 3
 		tankValue = -1
-	elseif tankValue > -1 and isTanking then
+	elseif NPTacct.youTankCombat and tankValue > -1 and isTanking then
 		threatStatus = status
 		tankValue = threatValue
-	elseif status then
+	elseif NPTacct.youTankCombat and status then
 		playerValue = threatValue
 	end
 	-- store if a non-tank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.nonTanks) do
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPTacct.enablePlayers and UnitIsUnit(unit, monster .. "target") then
+		if NPTacct.colorByTarget and UnitIsUnit(unit, monster .. "target") then
 			threatStatus = 0
 			tankValue = -1
-		elseif tankValue > -1 and isTanking then
+		elseif NPTacct.youTankCombat and tankValue > -1 and isTanking then
 			threatStatus = 3 - status
 			tankValue = threatValue
-		elseif status and threatValue > nonTankValue then
+		elseif NPTacct.youTankCombat and status and threatValue > nonTankValue then
 			nonTankValue = threatValue
 		end
 	end
 	-- store if an offheal is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offHeals) do
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPTacct.enablePlayers and UnitIsUnit(unit, monster .. "target") then
+		if NPTacct.colorByTarget and UnitIsUnit(unit, monster .. "target") then
 			threatStatus = 7
 			tankValue = -1
-		elseif tankValue > -1 and isTanking then
+		elseif NPTacct.youTankCombat and tankValue > -1 and isTanking then
 			threatStatus = status + 4
 			tankValue = threatValue
-		elseif status and threatValue > offHealValue then
+		elseif NPTacct.youTankCombat and status and threatValue > offHealValue then
 			offHealValue = threatValue
 		end
 	end
@@ -306,7 +307,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 			end
 -- Sjakal begin TODO: remove forced unique and reduce number of colors and use green when player is tank role
 			-- if NPT.playerRole == "TANK" then
-				-- if status == 0 then	-- others tanking by threat	orange to yellow
+				-- if status == 0 then		-- others tanking by threat	orange to yellow
 					-- color = 0
 					-- if NPTacct.forcingUnique then fader = 1 else fader = 2 end
 				-- elseif status == 1 then	-- others tanking by force	yellow to orange
@@ -332,7 +333,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 					-- if NPTacct.forcingUnique then fader = 6 else fader = 0 end
 				-- end
 			-- elseif NPTacct.nonTankUnique then
-				-- if status == 0 then	-- others tanking by threat	gray to yellow
+				-- if status == 0 then		-- others tanking by threat	gray to yellow
 					-- color = 0
 					-- if NPTacct.forcingUnique then fader = 1 else fader = 2 end
 				-- elseif status == 1 then	-- others tanking by force	yellow to gray
@@ -634,6 +635,7 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
 
 	NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, NPT.acct.gradientColor)
 	NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, NPT.acct.gradientPrSec)
+	NPTframe.colorByTarget:GetScript("PostClick")(NPTframe.colorByTarget, nil, nil, NPT.acct.colorByTarget)
 
 	NPTframe.youTankCombat:GetScript("PostClick")(NPTframe.youTankCombat, nil, nil, NPT.acct.youTankCombat)
 	NPTframe.youTank7color:GetScript("PostClick")(NPTframe.youTank7color, nil, nil, NPT.acct.youTank7color)
@@ -674,7 +676,7 @@ function NPTframe:Initialize()
 	self.subTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -50)
 	self.subTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -50)
 	self.subTitle:SetJustifyH("LEFT")
-	self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes (in yellow below), press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
+	self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
 	self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
 	self.addonsEnabled = self:CheckButtonCreate("addonsEnabled", "Color Non-Friendly Nameplates", "Enable for AddOn to function.", 1)
@@ -687,6 +689,7 @@ function NPTframe:Initialize()
 		NPTframe.neutralsColor:GetScript("PostClick")(NPTframe.neutralsColor, nil, nil, nil, NPT.acct.addonsEnabled)
 
 		NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, nil, NPT.acct.addonsEnabled)
+		NPTframe.colorByTarget:GetScript("PostClick")(NPTframe.colorByTarget, nil, nil, nil, NPT.acct.addonsEnabled)
 
 		NPTframe.youTankCombat:GetScript("PostClick")(NPTframe.youTankCombat, nil, nil, nil, NPT.acct.addonsEnabled)
 		NPTframe.forcingUnique:GetScript("PostClick")(NPTframe.forcingUnique, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
@@ -706,12 +709,15 @@ function NPTframe:Initialize()
 		NPTframe.pvPlayerColor:GetScript("PostClick")(NPTframe.pvPlayerColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enablePlayers)
 	end)
 
-	self.gradientColor, self.gradientPrSec = self:CheckSliderCreate("gradientColor", "Color Gradient Updates Per Second", "Enable fading of nameplates between high and low colors.", "gradientPrSec", 1, 9, 3, true)
+	self.gradientColor, self.gradientPrSec = self:CheckSliderCreate("gradientColor", "Color Gradient Updates Per Second", "Enable fading of nameplates between high and low colors.", "gradientPrSec", 1, 9, 2, true)
 	self.gradientColor:SetScript("PostClick", function(self, button, down, value, enable)
 		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
 		NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.gradientColor)
 	end)
 	self.gradientPrSec:SetScript("OnValueChanged", NPTframe.SliderOnValueChanged)
+
+	self.colorByTarget = self:CheckButtonCreate("colorByTarget", "Color Nameplates by Target", "Enable coloring nameplates based on their current target.", 4, nil, true)
+	self.colorByTarget:SetScript("PostClick", NPTframe.CheckButtonPostClick)
 
 	self.pvPlayerColor = self:ColorSwatchCreate("pvPlayerColor", "Player is Out of Combat", "", 1, 4)
 	self.pvPlayerColor:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
