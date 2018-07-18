@@ -152,7 +152,7 @@ local function threatSituation(monster)
 		if NPTacct.colorByTarget and UnitIsUnit(unit, monster .. "target") then
 			threatStatus = 5
 			tankValue = -1
-		elseif NPTacct.youTankCombat and tankValue > -1 and isTanking then
+		elseif NPTacct.youTankCombat and status and tankValue > -1 and isTanking then
 			threatStatus = status + 2
 			tankValue = threatValue
 		elseif NPTacct.youTankCombat and status and threatValue > offTankValue then
@@ -164,7 +164,7 @@ local function threatSituation(monster)
 	if NPTacct.colorByTarget and UnitIsUnit("player", monster .. "target") then
 		threatStatus = 3
 		tankValue = -1
-	elseif NPTacct.youTankCombat and tankValue > -1 and isTanking then
+	elseif NPTacct.youTankCombat and status and tankValue > -1 and isTanking then
 		threatStatus = status
 		tankValue = threatValue
 	elseif NPTacct.youTankCombat and status then
@@ -176,7 +176,7 @@ local function threatSituation(monster)
 		if NPTacct.colorByTarget and UnitIsUnit(unit, monster .. "target") then
 			threatStatus = 0
 			tankValue = -1
-		elseif NPTacct.youTankCombat and tankValue > -1 and isTanking then
+		elseif NPTacct.youTankCombat and status and tankValue > -1 and isTanking then
 			threatStatus = 3 - status
 			tankValue = threatValue
 		elseif NPTacct.youTankCombat and status and threatValue > nonTankValue then
@@ -189,7 +189,7 @@ local function threatSituation(monster)
 		if NPTacct.colorByTarget and UnitIsUnit(unit, monster .. "target") then
 			threatStatus = 7
 			tankValue = -1
-		elseif NPTacct.youTankCombat and tankValue > -1 and isTanking then
+		elseif NPTacct.youTankCombat and status and tankValue > -1 and isTanking then
 			threatStatus = status + 4
 			tankValue = threatValue
 		elseif NPTacct.youTankCombat and status and threatValue > offHealValue then
@@ -305,7 +305,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 					color = 2
 				end
 			end
--- Sjakal begin TODO: remove forced unique and reduce number of colors and use green when player is tank role
+-- mikfhan begin TODO: remove forced unique and reduce number of colors and use green when player is tank role?
 			-- if NPT.playerRole == "TANK" then
 				-- if status == 0 then		-- others tanking by threat	orange to yellow
 					-- color = 0
@@ -359,8 +359,33 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 					-- if NPTacct.forcingUnique then fader = 6 else fader = 0 end
 				-- end
 			-- else
+				-- if status == 0 then		-- others tanking by threat	gray to yellow
+					-- color = 5
+					-- if NPTacct.forcingUnique then fader = 4 else fader = 2 end
+				-- elseif status == 1 then	-- others tanking by force	yellow to gray
+					-- if NPTacct.forcingUnique then color = 4 else color = 2 end
+					-- fader = 5
+				-- elseif status == 2 then	-- you're tanking by force	yellow to orange
+					-- if NPTacct.forcingUnique then color = 1 else color = 2 end
+					-- fader = 0
+				-- elseif status == 3 then	-- you're tanking by threat	orange to yellow
+					-- color = 0
+					-- if NPTacct.forcingUnique then fader = 1 else fader = 2 end
+				-- elseif status == 4 then	-- tanks tanking by force	gray to green
+					-- color = 2
+					-- fader = 3
+				-- elseif status == 5 then	-- tanks tanking by threat	green to gray
+					-- color = 3
+					-- fader = 2
+				-- elseif status == 6 then	-- healer tanking by force	orange to red
+					-- if NPTacct.forcingUnique then color = 6 else color = 0 end
+					-- fader = 7
+				-- elseif status == 7 then	-- healer tanking by threat	red to orange
+					-- color = 7
+					-- if NPTacct.forcingUnique then fader = 6 else fader = 0 end
+				-- end
 			-- end
--- Sjakal finish
+-- mikfhan finish
 			if NPT.playerRole == "TANK" or not NPTacct.nonTankUnique then
 				color = NPTacct["youTank" .. color .. "color"]
 				fader = NPTacct["youTank" .. fader .. "color"]
