@@ -206,7 +206,7 @@ local function threatSituation(monster)
 		end
 	end
 	-- clear threat values if tank was found through monster target
-	if NPTacct.colorByTarget and targetStatus > -1 and threatStatus < 0 then
+	if targetStatus > -1 and (UnitIsPlayer(monster) or NPTacct.colorByTarget) and threatStatus < 0 then
 		threatStatus = targetStatus
 		tankValue = 0
 		offTankValue = 0
