@@ -28,7 +28,6 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["nonTank2color"] = {r=255, g=255, b=120} -- yellow others tanking by force
 	newAcct["nonTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force	2 <
 	newAcct["forcingUnique"] = false -- unique force colors instead of reuse threat colors
-	newAcct["colorByTarget"] = false -- color nameplates by target even if threat is known
 	newAcct["colBorderOnly"] = false -- ignore healthbar and color nameplate border instead
 
 	if oldAcct then -- override defaults with imported values if old keys match new keys
@@ -214,7 +213,7 @@ local function threatSituation(monster)
 		end
 	end
 	-- clear threat values if tank was found through monster target
-	if targetStatus > -1 and (UnitIsPlayer(monster) or NPTacct.colorByTarget or threatStatus < 0) then
+	if targetStatus > -1 and (UnitIsPlayer(monster) or threatStatus < 0) then
 		threatStatus = targetStatus
 		tankValue = 0
 		offTankValue = 0
@@ -680,7 +679,6 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
 
 	NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, NPT.acct.gradientColor)
 	NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, NPT.acct.gradientPrSec)
-	NPTframe.colorByTarget:GetScript("PostClick")(NPTframe.colorByTarget, nil, nil, NPT.acct.colorByTarget)
 	NPTframe.colBorderOnly:GetScript("PostClick")(NPTframe.colBorderOnly, nil, nil, NPT.acct.colBorderOnly)
 
 	NPTframe.youTankCombat:GetScript("PostClick")(NPTframe.youTankCombat, nil, nil, NPT.acct.youTankCombat)
@@ -735,7 +733,6 @@ function NPTframe:Initialize()
 		NPTframe.neutralsColor:GetScript("PostClick")(NPTframe.neutralsColor, nil, nil, nil, NPT.acct.addonsEnabled)
 
 		NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, nil, NPT.acct.addonsEnabled)
-		NPTframe.colorByTarget:GetScript("PostClick")(NPTframe.colorByTarget, nil, nil, nil, NPT.acct.addonsEnabled)
 		NPTframe.colBorderOnly:GetScript("PostClick")(NPTframe.colBorderOnly, nil, nil, nil, NPT.acct.addonsEnabled)
 
 		NPTframe.youTankCombat:GetScript("PostClick")(NPTframe.youTankCombat, nil, nil, nil, NPT.acct.addonsEnabled)
@@ -763,10 +760,7 @@ function NPTframe:Initialize()
 	end)
 	self.gradientPrSec:SetScript("OnValueChanged", NPTframe.SliderOnValueChanged)
 
-	self.colorByTarget = self:CheckButtonCreate("colorByTarget", "Color Nameplates by Target", "Enable coloring nameplates via their target instead of threat info.", 3, nil, true)
-	self.colorByTarget:SetScript("PostClick", NPTframe.CheckButtonPostClick)
-
-	self.colBorderOnly = self:CheckButtonCreate("colBorderOnly", "Color Plate Borders Instead", "Enable coloring only the border instead of the whole nameplate.", 4, nil, true)
+	self.colBorderOnly = self:CheckButtonCreate("colBorderOnly", "Color Nameplate Border Only", "Enable coloring only the border instead of the whole nameplate.", 4, nil, true)
 	self.colBorderOnly:SetScript("PostClick", NPTframe.CheckButtonPostClick)
 
 	self.pvPlayerColor = self:ColorSwatchCreate("pvPlayerColor", "Player is Out of Combat", "", 1, 4)
