@@ -62,28 +62,42 @@ local function resetFrame(frame)
 	if frame.threat then
 		frame.threat = nil
 		if frame.unit then
-			CompactUnitFrame_UpdateHealthColor(frame)
 			CompactUnitFrame_UpdateHealthBorder(frame)
+			CompactUnitFrame_UpdateHealthColor(frame)
 		end
-		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b)
+		frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, frame.healthBar.border.a)
+		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b, frame.healthBar.a)
 	end
 end
 
 local function updatePlateColor(frame, ...)
-	local checkUpdate = ...
+	local forceUpdate = ...
 	if frame.threat then
-		if not checkUpdate or not frame.threat.previousColor
-			or frame.threat.previousColor.r ~= frame.healthBar.r
-			or frame.threat.previousColor.g ~= frame.healthBar.g
-			or frame.threat.previousColor.b ~= frame.healthBar.b
-		then
+		if not forceUpdate then
+			local currentColor = {}
 			if NPTacct.colBorderOnly then
-				frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, 1)
+				currentColor.a = frame.healthBar.border.a
+				currentColor.r = frame.healthBar.border.r
+				currentColor.g = frame.healthBar.border.g
+				currentColor.b = frame.healthBar.border.b
 			else
-				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b)
-				frame.threat.previousColor.r = frame.healthBar.r
-				frame.threat.previousColor.g = frame.healthBar.g
-				frame.threat.previousColor.b = frame.healthBar.b
+				currentColor.a = frame.healthBar.a
+				currentColor.r = frame.healthBar.r
+				currentColor.g = frame.healthBar.g
+				currentColor.b = frame.healthBar.b
+			end
+			if currentColor.r ~= frame.threat.color.r
+				or currentColor.g ~= frame.threat.color.g
+				or currentColor.b ~= frame.threat.color.b
+			then
+				forceUpdate = true
+			end
+		end
+		if forceUpdate then
+			if NPTacct.colBorderOnly then
+				frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+			else
+				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 			end
 		end
 	end
@@ -414,9 +428,9 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		end
 		if not frame.threat then
 			frame.threat = {
-				["color"] = {},
-				["previousColor"] = {},
-			};
+				["color"] = {}
+			}
+			frame.threat.color.a = 1
 		end
 		frame.threat.lastStatus = status
 		frame.threat.lastRatio = ratio
@@ -430,7 +444,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 			frame.threat.color.g = color.g / 255
 			frame.threat.color.b = color.b / 255
 		end
-		updatePlateColor(frame, true)
+		updatePlateColor(frame, false)
 	end
 	return frame, status, tank, offtank, player, nontank, offheal
 end
@@ -439,18 +453,18 @@ end
 hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updatePlateColor)
 hooksecurefunc("CompactUnitFrame_UpdateHealthBorder", updatePlateColor)
 
-NPT:RegisterEvent("UNIT_TARGET");
-NPT:RegisterEvent("PLAYER_REGEN_ENABLED");
-NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE");
-NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED");
-NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED");
-NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED");
-NPT:RegisterEvent("RAID_ROSTER_UPDATE");
-NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
-NPT:RegisterEvent("PLAYER_ENTERING_WORLD");
-NPT:RegisterEvent("PET_DISMISS_START");
-NPT:RegisterEvent("UNIT_PET");
-NPT:RegisterEvent("ADDON_LOADED");
+NPT:RegisterEvent("UNIT_TARGET")
+NPT:RegisterEvent("PLAYER_REGEN_ENABLED")
+NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
+NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED")
+NPT:RegisterEvent("RAID_ROSTER_UPDATE")
+NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+NPT:RegisterEvent("PLAYER_ENTERING_WORLD")
+NPT:RegisterEvent("PET_DISMISS_START")
+NPT:RegisterEvent("UNIT_PET")
+NPT:RegisterEvent("ADDON_LOADED")
 NPT:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and string.upper(arg1) == string.upper("NamePlatesThreat") then
 		repeat
@@ -505,7 +519,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			resetFrame(nameplate.UnitFrame)
 		end
 	end
-end);
+end)
 NPT:SetScript("OnUpdate", function(self, elapsed)
 	if NPTacct.addonsEnabled and NPTacct.gradientColor then
 		NPT.thisUpdate = NPT.thisUpdate + elapsed
@@ -513,7 +527,7 @@ NPT:SetScript("OnUpdate", function(self, elapsed)
 			NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
 		end
 	end -- remember "/console reloadui" for any script changes to take effect
-end);
+end)
 function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
 	if enable ~= nil and not enable then
 		if NPTframe.lastSwatch and NPTframe.lastSwatch == self then
