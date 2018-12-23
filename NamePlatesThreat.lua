@@ -28,7 +28,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["nonTank2color"] = {r=255, g=255, b=120} -- yellow others tanking by force
 	newAcct["nonTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force	2 <
 	newAcct["forcingUnique"] = false -- unique force colors instead of reuse threat colors
-	newAcct["colorByTarget"] = false -- also color nameplates depending on their target
+	newAcct["colBorderOnly"] = false -- ignore healthbar and color nameplate border instead
 
 	if oldAcct then -- override defaults with imported values if old keys match new keys
 		--print("oldAcct:Begin")
@@ -61,23 +61,44 @@ NPTframe.lastSwatch = nil
 local function resetFrame(frame)
 	if frame.threat then
 		frame.threat = nil
-		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b)
+		if frame.unit then
+			CompactUnitFrame_UpdateHealthBorder(frame)
+			CompactUnitFrame_UpdateHealthColor(frame)
+		end
+		frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, frame.healthBar.border.a)
+		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b, frame.healthBar.a)
 	end
 end
 
-local function updateHealthColor(frame, ...)
+local function updatePlateColor(frame, ...)
+	local forceUpdate = ...
 	if frame.threat then
-		local forceUpdate = ...
-		local previousColor = frame.threat.previousColor
-		if forceUpdate or not previousColor
-				or previousColor.r ~= frame.healthBar.r
-				or previousColor.g ~= frame.healthBar.g
-				or previousColor.b ~= frame.healthBar.b then
-			frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b)
-
-			frame.threat.previousColor.r = frame.healthBar.r
-			frame.threat.previousColor.g = frame.healthBar.g
-			frame.threat.previousColor.b = frame.healthBar.b
+		if not forceUpdate then
+			local currentColor = {}
+			if NPTacct.colBorderOnly then
+				currentColor.a = frame.healthBar.border.a
+				currentColor.r = frame.healthBar.border.r
+				currentColor.g = frame.healthBar.border.g
+				currentColor.b = frame.healthBar.border.b
+			else
+				currentColor.a = frame.healthBar.a
+				currentColor.r = frame.healthBar.r
+				currentColor.g = frame.healthBar.g
+				currentColor.b = frame.healthBar.b
+			end
+			if currentColor.r ~= frame.threat.color.r
+				or currentColor.g ~= frame.threat.color.g
+				or currentColor.b ~= frame.threat.color.b
+			then
+				forceUpdate = true
+			end
+		end
+		if forceUpdate then
+			if NPTacct.colBorderOnly then
+				frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+			else
+				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+			end
 		end
 	end
 end
@@ -206,7 +227,7 @@ local function threatSituation(monster)
 		end
 	end
 	-- clear threat values if tank was found through monster target
-	if targetStatus > -1 and (UnitIsPlayer(monster) or NPTacct.colorByTarget) and threatStatus < 0 then
+	if targetStatus > -1 and (UnitIsPlayer(monster) or threatStatus < 0) then
 		threatStatus = targetStatus
 		tankValue = 0
 		offTankValue = 0
@@ -407,9 +428,9 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		end
 		if not frame.threat then
 			frame.threat = {
-				["color"] = {},
-				["previousColor"] = {},
-			};
+				["color"] = {}
+			}
+			frame.threat.color.a = 1
 		end
 		frame.threat.lastStatus = status
 		frame.threat.lastRatio = ratio
@@ -423,26 +444,27 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 			frame.threat.color.g = color.g / 255
 			frame.threat.color.b = color.b / 255
 		end
-		updateHealthColor(frame, true)
+		updatePlateColor(frame, false)
 	end
 	return frame, status, tank, offtank, player, nontank, offheal
 end
 
 -- The color is only going to be reset after it was actually changed.
-hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updateHealthColor)
+hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updatePlateColor)
+hooksecurefunc("CompactUnitFrame_UpdateHealthBorder", updatePlateColor)
 
-NPT:RegisterEvent("UNIT_TARGET");
-NPT:RegisterEvent("PLAYER_REGEN_ENABLED");
-NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE");
-NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED");
-NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED");
-NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED");
-NPT:RegisterEvent("RAID_ROSTER_UPDATE");
-NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
-NPT:RegisterEvent("PLAYER_ENTERING_WORLD");
-NPT:RegisterEvent("PET_DISMISS_START");
-NPT:RegisterEvent("UNIT_PET");
-NPT:RegisterEvent("ADDON_LOADED");
+NPT:RegisterEvent("UNIT_TARGET")
+NPT:RegisterEvent("PLAYER_REGEN_ENABLED")
+NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
+NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED")
+NPT:RegisterEvent("RAID_ROSTER_UPDATE")
+NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+NPT:RegisterEvent("PLAYER_ENTERING_WORLD")
+NPT:RegisterEvent("PET_DISMISS_START")
+NPT:RegisterEvent("UNIT_PET")
+NPT:RegisterEvent("ADDON_LOADED")
 NPT:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and string.upper(arg1) == string.upper("NamePlatesThreat") then
 		repeat
@@ -497,7 +519,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			resetFrame(nameplate.UnitFrame)
 		end
 	end
-end);
+end)
 NPT:SetScript("OnUpdate", function(self, elapsed)
 	if NPTacct.addonsEnabled and NPTacct.gradientColor then
 		NPT.thisUpdate = NPT.thisUpdate + elapsed
@@ -505,7 +527,7 @@ NPT:SetScript("OnUpdate", function(self, elapsed)
 			NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
 		end
 	end -- remember "/console reloadui" for any script changes to take effect
-end);
+end)
 function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
 	if enable ~= nil and not enable then
 		if NPTframe.lastSwatch and NPTframe.lastSwatch == self then
@@ -671,7 +693,7 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
 
 	NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, NPT.acct.gradientColor)
 	NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, NPT.acct.gradientPrSec)
-	NPTframe.colorByTarget:GetScript("PostClick")(NPTframe.colorByTarget, nil, nil, NPT.acct.colorByTarget)
+	NPTframe.colBorderOnly:GetScript("PostClick")(NPTframe.colBorderOnly, nil, nil, NPT.acct.colBorderOnly)
 
 	NPTframe.youTankCombat:GetScript("PostClick")(NPTframe.youTankCombat, nil, nil, NPT.acct.youTankCombat)
 	NPTframe.youTank7color:GetScript("PostClick")(NPTframe.youTank7color, nil, nil, NPT.acct.youTank7color)
@@ -725,7 +747,7 @@ function NPTframe:Initialize()
 		NPTframe.neutralsColor:GetScript("PostClick")(NPTframe.neutralsColor, nil, nil, nil, NPT.acct.addonsEnabled)
 
 		NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, nil, NPT.acct.addonsEnabled)
-		NPTframe.colorByTarget:GetScript("PostClick")(NPTframe.colorByTarget, nil, nil, nil, NPT.acct.addonsEnabled)
+		NPTframe.colBorderOnly:GetScript("PostClick")(NPTframe.colBorderOnly, nil, nil, nil, NPT.acct.addonsEnabled)
 
 		NPTframe.youTankCombat:GetScript("PostClick")(NPTframe.youTankCombat, nil, nil, nil, NPT.acct.addonsEnabled)
 		NPTframe.forcingUnique:GetScript("PostClick")(NPTframe.forcingUnique, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
@@ -752,8 +774,8 @@ function NPTframe:Initialize()
 	end)
 	self.gradientPrSec:SetScript("OnValueChanged", NPTframe.SliderOnValueChanged)
 
-	self.colorByTarget = self:CheckButtonCreate("colorByTarget", "Color Nameplates by Target", "Enable coloring nameplates based on their current target when threat info is unavailable.", 4, nil, true)
-	self.colorByTarget:SetScript("PostClick", NPTframe.CheckButtonPostClick)
+	self.colBorderOnly = self:CheckButtonCreate("colBorderOnly", "Color Nameplate Border Only", "Enable coloring only the border instead of the whole nameplate.", 4, nil, true)
+	self.colBorderOnly:SetScript("PostClick", NPTframe.CheckButtonPostClick)
 
 	self.pvPlayerColor = self:ColorSwatchCreate("pvPlayerColor", "Player is Out of Combat", "", 1, 4)
 	self.pvPlayerColor:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
