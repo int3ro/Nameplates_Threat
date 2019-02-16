@@ -62,10 +62,12 @@ local function resetFrame(frame)
 	if frame.threat then
 		frame.threat = nil
 		if frame.unit then
+			CompactUnitFrame_UpdateName(frame)
 			CompactUnitFrame_UpdateHealthBorder(frame)
 			CompactUnitFrame_UpdateHealthColor(frame)
+		else
+			frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, frame.healthBar.border.a)
 		end
-		frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, frame.healthBar.border.a)
 		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b, frame.healthBar.a)
 	end
 end
@@ -76,10 +78,17 @@ local function updatePlateColor(frame, ...)
 		if not forceUpdate then
 			local currentColor = {}
 			if NPTacct.colBorderOnly then
-				currentColor.a = frame.healthBar.border.a
-				currentColor.r = frame.healthBar.border.r
-				currentColor.g = frame.healthBar.border.g
-				currentColor.b = frame.healthBar.border.b
+				if frame.unit and UnitIsUnit(frame.unit, "playertarget") then
+					currentColor.a = frame.name.a
+					currentColor.r = frame.name.r
+					currentColor.g = frame.name.g
+					currentColor.b = frame.name.b
+				else
+					currentColor.a = frame.healthBar.border.a
+					currentColor.r = frame.healthBar.border.r
+					currentColor.g = frame.healthBar.border.g
+					currentColor.b = frame.healthBar.border.b
+				end
 			else
 				currentColor.a = frame.healthBar.a
 				currentColor.r = frame.healthBar.r
@@ -95,7 +104,11 @@ local function updatePlateColor(frame, ...)
 		end
 		if forceUpdate then
 			if NPTacct.colBorderOnly then
-				frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+				if frame.unit and UnitIsUnit(frame.unit, "playertarget") then
+					frame.name:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+				else
+					frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+				end
 			else
 				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 			end
@@ -453,6 +466,7 @@ end
 hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updatePlateColor)
 hooksecurefunc("CompactUnitFrame_UpdateHealthBorder", updatePlateColor)
 
+NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
 NPT:RegisterEvent("UNIT_TARGET")
 NPT:RegisterEvent("PLAYER_REGEN_ENABLED")
 NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
@@ -487,7 +501,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			self:GetScript("OnEvent")(self, "UNIT_THREAT_SITUATION_UPDATE")
 		end
 	elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" or
-		event == "PLAYER_REGEN_ENABLED" or event == "UNIT_TARGET" then
+		event == "PLAYER_REGEN_ENABLED" or event == "UNIT_TARGET" or event == "PLAYER_TARGET_CHANGED" then
 		local callback = function()
 			local nameplates, key, nameplate = {}
 			if InCombatLockdown() then
