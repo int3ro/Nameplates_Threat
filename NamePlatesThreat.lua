@@ -239,8 +239,8 @@ local function threatSituation(monster)
 			targetStatus = 7
 		end
 	end
-	-- clear threat values if tank was found through monster target
-	if targetStatus > -1 and (UnitIsPlayer(monster) or threatStatus < 0) then
+	-- clear threat values if tank is an NPC or was found through monster target
+	if not UnitIsPlayer(monster .. "target") or targetStatus > -1 and (UnitIsPlayer(monster) or threatStatus < 0) then
 		threatStatus = targetStatus
 		tankValue = 0
 		offTankValue = 0
