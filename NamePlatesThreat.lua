@@ -1,14 +1,16 @@
 local function initVariables(oldAcct) -- only the variables below are used by the addon
 	local newAcct, key, value = {}
 	newAcct["addonsEnabled"] = true  -- color by threat those nameplates you can attack
+	newAcct["colBorderOnly"] = true  -- ignore healthbar and color nameplate border instead
+	newAcct["showPetThreat"] = false -- include pets as offtanks when coloring nameplates
+	newAcct["enableOutside"] = true  -- also color nameplates outside PvE instances
 	newAcct["enableNoFight"] = true  -- also color nameplates not fighting your group
-	newAcct["enableOutside"] = false -- also color nameplates outside PvE instances
-	newAcct["enablePlayers"] = false -- also color nameplates for player characters
-	newAcct["gradientColor"] = false -- update nameplate color gradients (some CPU usage)
-	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
-	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
 	newAcct["hostilesColor"] = {r=163, g= 48, b=201} -- violet hostile not in group fight
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
+	newAcct["enablePlayers"] = false -- also color nameplates for player characters
+	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
+	newAcct["gradientColor"] = false -- update nameplate color gradients (some CPU usage)
+	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
 	newAcct["youTankCombat"] = true -- unique colors in combat instead of colors above
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
 	newAcct["youTank0color"] = {r=255, g=153, b=  0} -- orange others tanking by threat
@@ -28,8 +30,6 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["nonTank2color"] = {r=255, g=255, b=120} -- yellow others tanking by force
 	newAcct["nonTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force	2 <
 	newAcct["forcingUnique"] = false -- unique force colors instead of reuse threat colors
-	newAcct["colBorderOnly"] = false -- ignore healthbar and color nameplate border instead
-	newAcct["showPetThreat"] = false -- include pets as offtanks when coloring nameplates
 
 	if oldAcct then -- override defaults with imported values if old keys match new keys
 		--print("oldAcct:Begin")
