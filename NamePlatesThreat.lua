@@ -1,14 +1,16 @@
 local function initVariables(oldAcct) -- only the variables below are used by the addon
 	local newAcct, key, value = {}
 	newAcct["addonsEnabled"] = true  -- color by threat those nameplates you can attack
+	newAcct["colBorderOnly"] = true  -- ignore healthbar and color nameplate border instead
+	newAcct["showPetThreat"] = false -- include pets as offtanks when coloring nameplates
+	newAcct["enableOutside"] = true  -- also color nameplates outside PvE instances
 	newAcct["enableNoFight"] = true  -- also color nameplates not fighting your group
-	newAcct["enableOutside"] = false -- also color nameplates outside PvE instances
-	newAcct["enablePlayers"] = false -- also color nameplates for player characters
-	newAcct["gradientColor"] = true  -- update nameplate color gradients (some CPU usage)
-	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
-	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
 	newAcct["hostilesColor"] = {r=163, g= 48, b=201} -- violet hostile not in group fight
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
+	newAcct["enablePlayers"] = false -- also color nameplates for player characters
+	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
+	newAcct["gradientColor"] = false -- update nameplate color gradients (some CPU usage)
+	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
 	newAcct["youTankCombat"] = true -- unique colors in combat instead of colors above
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
 	newAcct["youTank0color"] = {r=255, g=153, b=  0} -- orange others tanking by threat
@@ -28,7 +30,6 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["nonTank2color"] = {r=255, g=255, b=120} -- yellow others tanking by force
 	newAcct["nonTank4color"] = {r=176, g=176, b=176} -- gray   group tanks tank by force	2 <
 	newAcct["forcingUnique"] = false -- unique force colors instead of reuse threat colors
-	newAcct["colBorderOnly"] = false -- ignore healthbar and color nameplate border instead
 
 	if oldAcct then -- override defaults with imported values if old keys match new keys
 		--print("oldAcct:Begin")
@@ -62,10 +63,12 @@ local function resetFrame(frame)
 	if frame.threat then
 		frame.threat = nil
 		if frame.unit then
+			CompactUnitFrame_UpdateName(frame)
 			CompactUnitFrame_UpdateHealthBorder(frame)
 			CompactUnitFrame_UpdateHealthColor(frame)
+		else
+			frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, frame.healthBar.border.a)
 		end
-		frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, frame.healthBar.border.a)
 		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b, frame.healthBar.a)
 	end
 end
@@ -76,10 +79,17 @@ local function updatePlateColor(frame, ...)
 		if not forceUpdate then
 			local currentColor = {}
 			if NPTacct.colBorderOnly then
-				currentColor.a = frame.healthBar.border.a
-				currentColor.r = frame.healthBar.border.r
-				currentColor.g = frame.healthBar.border.g
-				currentColor.b = frame.healthBar.border.b
+				if frame.unit and UnitIsUnit(frame.unit, "playertarget") then
+					currentColor.a = frame.name.a
+					currentColor.r = frame.name.r
+					currentColor.g = frame.name.g
+					currentColor.b = frame.name.b
+				else
+					currentColor.a = frame.healthBar.border.a
+					currentColor.r = frame.healthBar.border.r
+					currentColor.g = frame.healthBar.border.g
+					currentColor.b = frame.healthBar.border.b
+				end
 			else
 				currentColor.a = frame.healthBar.a
 				currentColor.r = frame.healthBar.r
@@ -95,7 +105,11 @@ local function updatePlateColor(frame, ...)
 		end
 		if forceUpdate then
 			if NPTacct.colBorderOnly then
-				frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+				if frame.unit and UnitIsUnit(frame.unit, "playertarget") then
+					frame.name:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+				else
+					frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+				end
 			else
 				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 			end
@@ -112,13 +126,7 @@ local function getGroupRoles()
 
 	collectedPlayer = GetSpecializationRole(GetSpecialization())
 	if UnitExists("pet") then
-		if collectedPlayer == "TANK" then
-			table.insert(collectedTanks, "pet")
-		elseif collectedPlayer == "HEALER" then
-			table.insert(collectedHeals, "pet")
-		else
-			table.insert(collectedOther, "pet")
-		end
+		table.insert(collectedTanks, "pet")
 	end
 	if isInRaid then
 		unitPrefix = "raid"
@@ -144,14 +152,8 @@ local function getGroupRoles()
 				table.insert(collectedOther, unit)
 			end
 			unit = unitPrefix .. "pet" .. i
-			if UnitExists(unit) then
-				if unitRole == "TANK" then
-					table.insert(collectedTanks, unit)
-				elseif unitRole == "HEALER" then
-					table.insert(collectedHeals, unit)
-				else
-					table.insert(collectedOther, unit)
-				end
+			if NPTacct.showPetThreat and UnitExists(unit) then
+				table.insert(collectedTanks, unit)
 			end
 		end
 	end
@@ -226,7 +228,7 @@ local function threatSituation(monster)
 			targetStatus = 7
 		end
 	end
-	-- clear threat values if tank was found through monster target
+	-- clear threat values if tank was found through monster target instead of threat
 	if targetStatus > -1 and (UnitIsPlayer(monster) or threatStatus < 0) then
 		threatStatus = targetStatus
 		tankValue = 0
@@ -453,6 +455,7 @@ end
 hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updatePlateColor)
 hooksecurefunc("CompactUnitFrame_UpdateHealthBorder", updatePlateColor)
 
+NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
 NPT:RegisterEvent("UNIT_TARGET")
 NPT:RegisterEvent("PLAYER_REGEN_ENABLED")
 NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
@@ -487,7 +490,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			self:GetScript("OnEvent")(self, "UNIT_THREAT_SITUATION_UPDATE")
 		end
 	elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" or
-		event == "PLAYER_REGEN_ENABLED" or event == "UNIT_TARGET" then
+		event == "PLAYER_REGEN_ENABLED" or event == "UNIT_TARGET" or event == "PLAYER_TARGET_CHANGED" then
 		local callback = function()
 			local nameplates, key, nameplate = {}
 			if InCombatLockdown() then
@@ -694,6 +697,7 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
 	NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, NPT.acct.gradientColor)
 	NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, NPT.acct.gradientPrSec)
 	NPTframe.colBorderOnly:GetScript("PostClick")(NPTframe.colBorderOnly, nil, nil, NPT.acct.colBorderOnly)
+	NPTframe.showPetThreat:GetScript("PostClick")(NPTframe.showPetThreat, nil, nil, NPT.acct.showPetThreat)
 
 	NPTframe.youTankCombat:GetScript("PostClick")(NPTframe.youTankCombat, nil, nil, NPT.acct.youTankCombat)
 	NPTframe.youTank7color:GetScript("PostClick")(NPTframe.youTank7color, nil, nil, NPT.acct.youTank7color)
@@ -748,6 +752,7 @@ function NPTframe:Initialize()
 
 		NPTframe.gradientColor:GetScript("PostClick")(NPTframe.gradientColor, nil, nil, nil, NPT.acct.addonsEnabled)
 		NPTframe.colBorderOnly:GetScript("PostClick")(NPTframe.colBorderOnly, nil, nil, nil, NPT.acct.addonsEnabled)
+		NPTframe.showPetThreat:GetScript("PostClick")(NPTframe.showPetThreat, nil, nil, nil, NPT.acct.addonsEnabled)
 
 		NPTframe.youTankCombat:GetScript("PostClick")(NPTframe.youTankCombat, nil, nil, nil, NPT.acct.addonsEnabled)
 		NPTframe.forcingUnique:GetScript("PostClick")(NPTframe.forcingUnique, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
@@ -755,17 +760,14 @@ function NPTframe:Initialize()
 		NPTframe.nonTankForced:GetScript("PostClick")(NPTframe.nonTankForced, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
 	end)
 
-	self.enableNoFight = self:CheckButtonCreate("enableNoFight", "Color Out of Combat", "Enable coloring nameplates when group is not in combat.", 1, 1)
-	self.enableNoFight:SetScript("PostClick", NPTframe.CheckButtonPostClick)
+	self.colBorderOnly = self:CheckButtonCreate("colBorderOnly", "Color Nameplate Border Only", "Enable coloring only the border instead of the whole nameplate.", 1, 1)
+	self.colBorderOnly:SetScript("PostClick", NPTframe.CheckButtonPostClick)
 
-	self.enableOutside = self:CheckButtonCreate("enableOutside", "Color Out of Dungeons", "Enable coloring nameplates outside PvE instanced zones.", 1, 2)
+	self.showPetThreat = self:CheckButtonCreate("showPetThreat", "Color Group Pets as Tanks", "Enable group pets as secondary tanks when coloring nameplates instead of only including yours.", 1, 2)
+	self.showPetThreat:SetScript("PostClick", NPTframe.CheckButtonPostClick)
+
+	self.enableOutside = self:CheckButtonCreate("enableOutside", "Color Out of Dungeons", "Enable coloring nameplates outside PvE instanced zones.", 1, 3)
 	self.enableOutside:SetScript("PostClick", NPTframe.CheckButtonPostClick)
-
-	self.enablePlayers = self:CheckButtonCreate("enablePlayers", "Color Player Characters", "Enable coloring nameplates of PvP flagged enemy players.", 1, 3)
-	self.enablePlayers:SetScript("PostClick", function(self, button, down, value, enable)
-		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
-		NPTframe.pvPlayerColor:GetScript("PostClick")(NPTframe.pvPlayerColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enablePlayers)
-	end)
 
 	self.gradientColor, self.gradientPrSec = self:CheckSliderCreate("gradientColor", "Color Gradient Updates Per Second", "Enable fading of nameplates between high and low colors.", "gradientPrSec", 1, 9, 2, true)
 	self.gradientColor:SetScript("PostClick", function(self, button, down, value, enable)
@@ -774,17 +776,26 @@ function NPTframe:Initialize()
 	end)
 	self.gradientPrSec:SetScript("OnValueChanged", NPTframe.SliderOnValueChanged)
 
-	self.colBorderOnly = self:CheckButtonCreate("colBorderOnly", "Color Nameplate Border Only", "Enable coloring only the border instead of the whole nameplate.", 4, nil, true)
-	self.colBorderOnly:SetScript("PostClick", NPTframe.CheckButtonPostClick)
-
-	self.pvPlayerColor = self:ColorSwatchCreate("pvPlayerColor", "Player is Out of Combat", "", 1, 4)
-	self.pvPlayerColor:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.hostilesColor = self:ColorSwatchCreate("hostilesColor", "Hostile is Out of Combat", "", 1, 5)
+	self.enableNoFight = self:CheckButtonCreate("enableNoFight", "Color Out of Combat", "Enable coloring nameplates when group is not in combat.", 4, nil, false)
+	self.enableNoFight:SetScript("PostClick", function(self, button, down, value, enable)
+		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
+		NPTframe.hostilesColor:GetScript("PostClick")(NPTframe.hostilesColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableNoFight)
+		NPTframe.neutralsColor:GetScript("PostClick")(NPTframe.neutralsColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enableNoFight)
+	end)
+	self.hostilesColor = self:ColorSwatchCreate("hostilesColor", "Hostile is Out of Combat", "", 4, 1, false)
 	self.hostilesColor:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.neutralsColor = self:ColorSwatchCreate("neutralsColor", "Neutral is Out of Combat", "", 1, 6)
+	self.neutralsColor = self:ColorSwatchCreate("neutralsColor", "Neutral is Out of Combat", "", 4, 2, false)
 	self.neutralsColor:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
-	self.youTankCombat = self:CheckButtonCreate("youTankCombat", "Color Nameplates by Threat", "Enable coloring nameplates by their threat values and which group role is currently tanking.", 6)
+	self.enablePlayers = self:CheckButtonCreate("enablePlayers", "Color Player Characters", "Enable coloring nameplates of PvP flagged enemy players.", 6, nil, false)
+	self.enablePlayers:SetScript("PostClick", function(self, button, down, value, enable)
+		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
+		NPTframe.pvPlayerColor:GetScript("PostClick")(NPTframe.pvPlayerColor, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.enablePlayers)
+	end)
+	self.pvPlayerColor = self:ColorSwatchCreate("pvPlayerColor", "Player is Out of Combat", "", 6, 1, false)
+	self.pvPlayerColor:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
+
+	self.youTankCombat = self:CheckButtonCreate("youTankCombat", "Color Nameplates by Threat", "Enable coloring nameplates by their threat values and which group role is currently tanking.", 8)
 	self.youTankCombat:SetScript("PostClick", function(self, button, down, value, enable)
 		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
 		NPTframe.youTank7color:GetScript("PostClick")(NPTframe.youTank7color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
@@ -795,18 +806,18 @@ function NPTframe:Initialize()
 		NPTframe.forcingUnique:GetScript("PostClick")(NPTframe.forcingUnique, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
 		NPTframe.nonTankUnique:GetScript("PostClick")(NPTframe.nonTankUnique, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
 	end)
-	self.youTank7color = self:ColorSwatchCreate("youTank7color", "Healers have High Threat", "", 6, 1)
+	self.youTank7color = self:ColorSwatchCreate("youTank7color", "Healers have High Threat", "", 8, 1)
 	self.youTank7color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.youTank0color = self:ColorSwatchCreate("youTank0color", "Damage has High Threat", "", 6, 2)
+	self.youTank0color = self:ColorSwatchCreate("youTank0color", "Damage has High Threat", "", 8, 2)
 	self.youTank0color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.youTank2color = self:ColorSwatchCreate("youTank2color", "You have the Low Threat", "", 6, 3)
+	self.youTank2color = self:ColorSwatchCreate("youTank2color", "You have the Low Threat", "", 8, 3)
 	self.youTank2color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.youTank3color = self:ColorSwatchCreate("youTank3color", "You have the High Threat", "", 6, 4)
+	self.youTank3color = self:ColorSwatchCreate("youTank3color", "You have the High Threat", "", 8, 4)
 	self.youTank3color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.youTank5color = self:ColorSwatchCreate("youTank5color", "Tanks have High Threat", "", 6, 5)
+	self.youTank5color = self:ColorSwatchCreate("youTank5color", "Tanks have High Threat", "", 8, 5)
 	self.youTank5color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
-	self.forcingUnique = self:CheckButtonCreate("forcingUnique", "Unique Colors Forced Tanking", "Enable colors below instead of reusing colors above when others are tanking by force.", 10)
+	self.forcingUnique = self:CheckButtonCreate("forcingUnique", "Unique Colors Forced Tanking", "Enable colors below instead of reusing colors above when others are tanking by force.", 12)
 	self.forcingUnique:SetScript("PostClick", function(self, button, down, value, enable)
 		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
 		NPTframe.youTank6color:GetScript("PostClick")(NPTframe.youTank6color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat and NPT.acct.forcingUnique)
@@ -814,14 +825,14 @@ function NPTframe:Initialize()
 		NPTframe.youTank4color:GetScript("PostClick")(NPTframe.youTank4color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat and NPT.acct.forcingUnique)
 		NPTframe.nonTankForced:GetScript("PostClick")(NPTframe.nonTankForced, nil, nil, NPT.acct.forcingUnique and NPT.acct.nonTankUnique, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
 	end)
-	self.youTank6color = self:ColorSwatchCreate("youTank6color", "Healers have Low Threat", "", 10, 1)
+	self.youTank6color = self:ColorSwatchCreate("youTank6color", "Healers have Low Threat", "", 12, 1)
 	self.youTank6color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.youTank1color = self:ColorSwatchCreate("youTank1color", "Damage has Low Threat", "", 10, 2)
+	self.youTank1color = self:ColorSwatchCreate("youTank1color", "Damage has Low Threat", "", 12, 2)
 	self.youTank1color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.youTank4color = self:ColorSwatchCreate("youTank4color", "Tanks have Low Threat", "", 10, 3)
+	self.youTank4color = self:ColorSwatchCreate("youTank4color", "Tanks have Low Threat", "", 12, 3)
 	self.youTank4color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
-	self.nonTankUnique = self:CheckButtonCreate("nonTankUnique", "Unique Colors as Non-Tank Role", "Enable colors below in a non-tank specialization instead of reusing colors to the left.", 6, nil, true)
+	self.nonTankUnique = self:CheckButtonCreate("nonTankUnique", "Unique Colors as Non-Tank Role", "Enable colors below in a non-tank specialization instead of reusing colors to the left.", 8, nil, true)
 	self.nonTankUnique:SetScript("PostClick", function(self, button, down, value, enable)
 		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
 		NPTframe.nonTank7color:GetScript("PostClick")(NPTframe.nonTank7color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat and NPT.acct.nonTankUnique)
@@ -831,18 +842,18 @@ function NPTframe:Initialize()
 		NPTframe.nonTank5color:GetScript("PostClick")(NPTframe.nonTank5color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat and NPT.acct.nonTankUnique)
 		NPTframe.nonTankForced:GetScript("PostClick")(NPTframe.nonTankForced, nil, nil, NPT.acct.forcingUnique and NPT.acct.nonTankUnique, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
 	end)
-	self.nonTank7color = self:ColorSwatchCreate("nonTank7color", "Healers have High Threat", "", 6, 1, true)
+	self.nonTank7color = self:ColorSwatchCreate("nonTank7color", "Healers have High Threat", "", 8, 1, true)
 	self.nonTank7color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.nonTank0color = self:ColorSwatchCreate("nonTank0color", "You have the High Threat", "", 6, 2, true)
+	self.nonTank0color = self:ColorSwatchCreate("nonTank0color", "You have the High Threat", "", 8, 2, true)
 	self.nonTank0color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.nonTank1color = self:ColorSwatchCreate("nonTank1color", "You have the Low Threat", "", 6, 3, true)
+	self.nonTank1color = self:ColorSwatchCreate("nonTank1color", "You have the Low Threat", "", 8, 3, true)
 	self.nonTank1color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.nonTank3color = self:ColorSwatchCreate("nonTank3color", "Damage has High Threat", "", 6, 4, true)
+	self.nonTank3color = self:ColorSwatchCreate("nonTank3color", "Damage has High Threat", "", 8, 4, true)
 	self.nonTank3color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.nonTank5color = self:ColorSwatchCreate("nonTank5color", "Tanks have High Threat", "", 6, 5, true)
+	self.nonTank5color = self:ColorSwatchCreate("nonTank5color", "Tanks have High Threat", "", 8, 5, true)
 	self.nonTank5color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
-	self.nonTankForced = self:CheckButtonCreate("nonTankForced", "Unique Colors Forced Non-Tank", "Enable colors below instead of reusing colors above when others are tanking by force.", 10, nil, true)
+	self.nonTankForced = self:CheckButtonCreate("nonTankForced", "Unique Colors Forced Non-Tank", "Enable colors below instead of reusing colors above when others are tanking by force.", 12, nil, true)
 	self.nonTankForced:SetScript("PostClick", function(self, button, down, value, enable)
 		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
 		if value == nil and enable == nil then
@@ -861,11 +872,11 @@ function NPTframe:Initialize()
 		NPTframe.nonTank2color:GetScript("PostClick")(NPTframe.nonTank2color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat and NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
 		NPTframe.nonTank4color:GetScript("PostClick")(NPTframe.nonTank4color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat and NPT.acct.forcingUnique and NPT.acct.nonTankUnique)
 	end)
-	self.nonTank6color = self:ColorSwatchCreate("nonTank6color", "Healers have Low Threat", "", 10, 1, true)
+	self.nonTank6color = self:ColorSwatchCreate("nonTank6color", "Healers have Low Threat", "", 12, 1, true)
 	self.nonTank6color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.nonTank2color = self:ColorSwatchCreate("nonTank2color", "Damage has Low Threat", "", 10, 2, true)
+	self.nonTank2color = self:ColorSwatchCreate("nonTank2color", "Damage has Low Threat", "", 12, 2, true)
 	self.nonTank2color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
-	self.nonTank4color = self:ColorSwatchCreate("nonTank4color", "Tanks have Low Threat", "", 10, 3, true)
+	self.nonTank4color = self:ColorSwatchCreate("nonTank4color", "Tanks have Low Threat", "", 12, 3, true)
 	self.nonTank4color:SetScript("PostClick", NPTframe.ColorSwatchPostClick)
 
 	InterfaceOptions_AddCategory(self)
