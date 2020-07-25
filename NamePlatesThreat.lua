@@ -228,6 +228,20 @@ local function threatSituation(monster)
 			targetStatus = 7
 		end
 	end
+	-- default to offtank low threat on a nongroup target if none of the above were a match
+	if targetStatus < 0 and UnitExists(monster .. "target") then
+		unit = monster .. "target"
+		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
+		if NPTacct.youTankCombat and status and NPTacct.showPetThreat then
+			if isTanking then
+				threatStatus = status + 2
+				tankValue = threatValue
+			elseif threatValue > offTankValue then
+				offTankValue = threatValue
+			end
+		end
+		targetStatus = 4
+	end
 	-- clear threat values if tank was found through monster target instead of threat
 	if targetStatus > -1 and (UnitIsPlayer(monster) or threatStatus < 0) then
 		threatStatus = targetStatus
