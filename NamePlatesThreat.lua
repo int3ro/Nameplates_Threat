@@ -887,7 +887,7 @@ function NPTframe:Initialize()
 	InterfaceOptions_AddCategory(self)
 end
 function NPTframe:ColorSwatchCreate(newName, newText, toolText, mainRow, subRow, columnTwo)
-	local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
+	local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate" and "BackdropTemplate")
 	newObject.text = _G[newName .. "Text"]
 	local rowX, rowY, colX = 10, 22.65, 0
 	if subRow then
