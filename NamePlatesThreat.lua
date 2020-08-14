@@ -60,7 +60,7 @@ local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking th
 NPTframe.lastSwatch = nil
 
 local function resetFrame(frame)
-	if frame.threat then
+	if frame and frame.threat then
 		frame.threat = nil
 		if frame.unit then
 			CompactUnitFrame_UpdateName(frame)
@@ -75,7 +75,7 @@ end
 
 local function updatePlateColor(frame, ...)
 	local forceUpdate = ...
-	if frame.threat then
+	if frame and frame.threat then
 		if not forceUpdate then
 			local currentColor = {}
 			if NPTacct.colBorderOnly then
@@ -887,8 +887,8 @@ function NPTframe:Initialize()
 	InterfaceOptions_AddCategory(self)
 end
 function NPTframe:ColorSwatchCreate(newName, newText, toolText, mainRow, subRow, columnTwo)
-	local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate" and "BackdropTemplate")
-	newObject.text = _G[newName .. "Text"]
+	local newObject = CreateFrame("CheckButton", newName, self, BackdropTemplateMixin and "InterfaceOptionsCheckButtonTemplate,BackdropTemplate" or "InterfaceOptionsCheckButtonTemplate")
+	newObject.text = _G[newObject:GetName() .. "Text"]
 	local rowX, rowY, colX = 10, 22.65, 0
 	if subRow then
 		newObject.text:SetFontObject("GameFontDisableSmall")
@@ -902,6 +902,7 @@ function NPTframe:ColorSwatchCreate(newName, newText, toolText, mainRow, subRow,
 	if columnTwo then
 		colX = 286
 	end
+
 	newObject.color = newObject:CreateTexture()
 	newObject.color:SetWidth(15)
 	newObject.color:SetHeight(15)
@@ -930,7 +931,7 @@ function NPTframe:ColorSwatchCreate(newName, newText, toolText, mainRow, subRow,
 end
 function NPTframe:CheckButtonCreate(newName, newText, toolText, mainRow, subRow, columnTwo)
 	local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
-	newObject.text = _G[newName .. "Text"]
+	newObject.text = _G[newObject:GetName() .. "Text"]
 	local rowX, rowY, colX = 10, 22.65, 0
 	if subRow then
 		newObject.text:SetFontObject("GameFontDisableSmall")
