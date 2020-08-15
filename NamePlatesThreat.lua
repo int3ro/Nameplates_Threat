@@ -60,7 +60,7 @@ local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking th
 NPTframe.lastSwatch = nil
 
 local function resetFrame(frame)
-	if frame and frame.threat then
+	if frame.threat then
 		frame.threat = nil
 		if frame.unit then
 			CompactUnitFrame_UpdateName(frame)
@@ -75,7 +75,7 @@ end
 
 local function updatePlateColor(frame, ...)
 	local forceUpdate = ...
-	if frame and frame.threat then
+	if frame.threat then
 		if not forceUpdate then
 			local currentColor = {}
 			if NPTacct.colBorderOnly then
@@ -245,7 +245,7 @@ local function threatSituation(monster)
 					offTankValue = threatValue
 				end
 			end
-			if UnitReaction(monster, unit) <= 3 then
+			if UnitIsEnemy(monster, unit) then
 				targetStatus = 5
 			end
 		else
@@ -257,7 +257,7 @@ local function threatSituation(monster)
 					nonTankValue = threatValue
 				end
 			end
-			if UnitReaction(monster, unit) <= 3 then
+			if UnitIsEnemy(monster, unit) then
 				targetStatus = 0
 			end
 		end
@@ -333,10 +333,14 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		if not unit then
 			unit = frame.unit
 		end
+	else
+		ratio = 0
 	end
 	if not status or not NPTacct.enableNoFight and NPT.thisUpdate and status < 0 then
 		resetFrame(frame) -- only recolor when situation was changed with gradient toward sibling color
-	elseif not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= ratio then
+-- mikfhan TODO: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the line below:
+--	elseif not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= ratio then
+	else
 		local color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
 		if UnitIsPlayer(unit) then
 			color = NPTacct.pvPlayerColor
@@ -503,12 +507,10 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			end
 			for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
 				nameplate = {updateThreatColor(nameplate.UnitFrame)}
-				if not NPTacct.enableNoFight and NPT.thisUpdate and nameplate[2] then
-					if nameplate[2] < 0 then
-						table.insert(nameplates, nameplate) -- store for recoloring later
-					else
-						NPT.thisUpdate = nil -- meaning we must recolor non combat plates
-					end
+				if not NPTacct.enableNoFight and NPT.thisUpdate and nameplate[2] and nameplate[2] < 0 then
+					table.insert(nameplates, nameplate) -- store for recoloring later
+				else
+					NPT.thisUpdate = nil -- meaning we must recolor non combat plates
 				end
 			end
 			for key, nameplate in pairs(nameplates) do
@@ -523,7 +525,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		end
 	elseif event == "NAME_PLATE_UNIT_REMOVED" then
 		local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
-		if nameplate then
+		if nameplate and nameplate.UnitFrame then
 			resetFrame(nameplate.UnitFrame)
 		end
 	end
