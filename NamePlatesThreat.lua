@@ -245,7 +245,7 @@ local function threatSituation(monster)
 					offTankValue = threatValue
 				end
 			end
-			if UnitIsEnemy(monster, unit) then
+			if not UnitIsFriend(monster, unit) then
 				targetStatus = 5
 			end
 		else
@@ -257,7 +257,7 @@ local function threatSituation(monster)
 					nonTankValue = threatValue
 				end
 			end
-			if UnitIsEnemy(monster, unit) then
+			if not UnitIsFriend(monster, unit) then
 				targetStatus = 0
 			end
 		end
