@@ -245,7 +245,7 @@ local function threatSituation(monster)
 					offTankValue = threatValue
 				end
 			end
-			if UnitReaction(monster, unit) <= 3 then
+			if not UnitIsFriend(monster, unit) then
 				targetStatus = 5
 			end
 		else
@@ -257,7 +257,7 @@ local function threatSituation(monster)
 					nonTankValue = threatValue
 				end
 			end
-			if UnitReaction(monster, unit) <= 3 then
+			if not UnitIsFriend(monster, unit) then
 				targetStatus = 0
 			end
 		end
@@ -333,10 +333,14 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		if not unit then
 			unit = frame.unit
 		end
+	else
+		ratio = 0
 	end
 	if not status or not NPTacct.enableNoFight and NPT.thisUpdate and status < 0 then
 		resetFrame(frame) -- only recolor when situation was changed with gradient toward sibling color
-	elseif not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= ratio then
+-- mikfhan TODO: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the line below:
+--	elseif not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= ratio then
+	else
 		local color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
 		if UnitIsPlayer(unit) then
 			color = NPTacct.pvPlayerColor
@@ -503,12 +507,10 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			end
 			for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
 				nameplate = {updateThreatColor(nameplate.UnitFrame)}
-				if not NPTacct.enableNoFight and NPT.thisUpdate and nameplate[2] then
-					if nameplate[2] < 0 then
-						table.insert(nameplates, nameplate) -- store for recoloring later
-					else
-						NPT.thisUpdate = nil -- meaning we must recolor non combat plates
-					end
+				if not NPTacct.enableNoFight and NPT.thisUpdate and nameplate[2] and nameplate[2] < 0 then
+					table.insert(nameplates, nameplate) -- store for recoloring later
+				else
+					NPT.thisUpdate = nil -- meaning we must recolor non combat plates
 				end
 			end
 			for key, nameplate in pairs(nameplates) do
@@ -523,7 +525,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		end
 	elseif event == "NAME_PLATE_UNIT_REMOVED" then
 		local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
-		if nameplate then
+		if nameplate and nameplate.UnitFrame then
 			resetFrame(nameplate.UnitFrame)
 		end
 	end
@@ -887,8 +889,8 @@ function NPTframe:Initialize()
 	InterfaceOptions_AddCategory(self)
 end
 function NPTframe:ColorSwatchCreate(newName, newText, toolText, mainRow, subRow, columnTwo)
-	local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
-	newObject.text = _G[newName .. "Text"]
+	local newObject = CreateFrame("CheckButton", newName, self, BackdropTemplateMixin and "InterfaceOptionsCheckButtonTemplate,BackdropTemplate" or "InterfaceOptionsCheckButtonTemplate")
+	newObject.text = _G[newObject:GetName() .. "Text"]
 	local rowX, rowY, colX = 10, 22.65, 0
 	if subRow then
 		newObject.text:SetFontObject("GameFontDisableSmall")
@@ -902,6 +904,7 @@ function NPTframe:ColorSwatchCreate(newName, newText, toolText, mainRow, subRow,
 	if columnTwo then
 		colX = 286
 	end
+
 	newObject.color = newObject:CreateTexture()
 	newObject.color:SetWidth(15)
 	newObject.color:SetHeight(15)
@@ -930,7 +933,7 @@ function NPTframe:ColorSwatchCreate(newName, newText, toolText, mainRow, subRow,
 end
 function NPTframe:CheckButtonCreate(newName, newText, toolText, mainRow, subRow, columnTwo)
 	local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
-	newObject.text = _G[newName .. "Text"]
+	newObject.text = _G[newObject:GetName() .. "Text"]
 	local rowX, rowY, colX = 10, 22.65, 0
 	if subRow then
 		newObject.text:SetFontObject("GameFontDisableSmall")
