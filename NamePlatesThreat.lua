@@ -308,24 +308,27 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		end
 		-- compare highest group threat with tank for color gradient if enabled
 		if NPTacct.gradientColor and status > -1 then
-			if NPT.playerRole == "TANK" then
+			if status == 6 or status == 7 then
+				ratio = math.max(offtank, player, nontank)
+			elseif NPT.playerRole == "TANK" then
 				if status == 0 or status == 1 then
 					ratio = math.max(offtank, player)
-				else -- you or an offtank are tanking the monster
+				else -- damage roles are tanking the monster
 					ratio = math.max(nontank, offheal)
-				end
+				end -- offtanks or you as tank have monster
 			else
 				if status == 2 or status == 3 then
-					ratio = math.max(offtank, nontank, offheal)
-				else -- someone is tanking the monster for you
-					ratio = player
-				end
+					ratio = math.max(offtank, nontank)
+				else -- you have monster as damage or healer
+					ratio = math.max(player, offheal)
+				end -- damage or tank roles have the monster
 			end
+			-- threat ratio when monster changes target from current (melee 110% or 130% ranged)
 			if status == 1 or status == 2 or status == 4 or status == 6 then
-				ratio = tank / math.max(ratio, 1)
-			else -- monster is tanked by someone via threat
-				ratio = ratio / math.max(tank, 1)
-			end
+				ratio = tank / math.max(ratio * 1.1, 1)
+			else -- monster is tanked by someone via threat (others must exceed 110% to change it)
+				ratio = ratio / math.max(tank * 1.1, 1)
+			end -- monster is tanked by someone via force (they must exceed 110% after to keep it)
 			ratio = math.min(ratio, 1)
 		else
 			ratio = 0
@@ -445,7 +448,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		end
 		frame.threat.lastStatus = status
 		frame.threat.lastRatio = ratio
-
+-- mikfhan TODO: spherical linear interpolation instead of linear to avoid color wheel grays
 		if NPTacct.gradientColor and ratio > 0 then
 			frame.threat.color.r = (color.r + (fader.r - color.r) * ratio) / 255
 			frame.threat.color.g = (color.g + (fader.g - color.g) * ratio) / 255
