@@ -275,6 +275,99 @@ local function threatSituation(monster)
 	return threatStatus, tankValue, offTankValue, playerValue, nonTankValue, offHealValue
 end
 
+-- mikfhan TODO: convert RGB max 1 into HSV max 1 color space (beware 0 > values > 1 rounding)
+local function rgb2hsv(color)
+	local cmax = math.max(color.r, color.g, color.b)
+	local diff = cmax - math.min(color.r, color.g, color.b)
+
+	local h = 0
+	if diff ~= 0 then
+		if cmax == color.r and color.g >= color.b then
+			h = (color.g - color.b) / diff
+		elseif cmax == color.r then
+			h = (color.g - color.b) / diff + 6)
+		elseif cmax == color.g then
+			h = (color.b - color.r) / diff + 2
+		elseif cmax == color.b then
+			h = (color.r - color.g) / diff + 4
+		end
+		h = h / 6
+	end
+	local s = diff / math.max(cmax, 1)
+
+	diff = {}
+	diff.h = h
+	diff.s = s
+	diff.v = cmax
+	return diff
+end
+
+-- mikfhan TODO: convert HSV max 1 into RGB max 1 color space (beware 0 > values > 1 rounding)
+local function hsv2rgb(color)
+	local i = math.floor(color.h * 6)
+	local p = color.h * 6 - i
+	local q = color.v * (1 - p * 2)
+	local t = color.v * (1 - (1 - p) * color.s)
+	p = color.v * (1 - color.s)
+
+	i = {r = i % 6}
+	if i.r == 0 then
+		i.r = color.v
+		i.g = t
+		i.b = p
+	elseif i.r == 1 then
+		i.r = q
+		i.g = color.v
+		i.b = p
+	elseif i.r == 2 then
+		i.r = p
+		i.g = color.v
+		i.b = t
+	elseif i.r == 3 then
+		i.r = p
+		i.g = q
+		i.b = color.v
+	elseif i.r == 4 then
+		i.r = t
+		i.g = p
+		i.b = color.v
+	else
+		i.r = color.v
+		i.g = p
+		i.b = q
+	end
+	return i
+end
+
+-- mikfhan TODO: convert to hue/saturation/value before fading then back again
+-- https://homepages.abdn.ac.uk/npmuseum/article/Maxwell/Legacy/Maxtriangle.gif
+-- https://axonflux.com/handy-rgb-to-hsl-and-rgb-to-hsv-color-model-c
+local function gradient(output, color, fader, ratio)
+	output.r = color.r / 255
+	output.g = color.g / 255
+	output.b = color.b / 255
+	output.a = 1
+	if NPTacct.gradientColor and ratio > 0 then
+		if ratio >= 1 then
+			output.r = fader.r / 255
+			output.g = fader.g / 255
+			output.b = fader.b / 255
+		else -- maximum ratio just uses the fader 100%
+			output = rgb2hsv(output)
+			output.a = {r=fader.r/255, g=fader.g/255, b=fader.b/255}
+			output.a = rgb2hsv(output.a)
+
+			output.h = (output.h + (output.a.h - output.h) * ratio)
+			output.s = (output.s + (output.a.s - output.s) * ratio)
+			output.v = (output.v + (output.a.v - output.v) * ratio)
+			output = hsv2rgb(output)
+--print(GetServerTime() .. " NPT ratio " .. ratio .. " RGB r=" .. output.r .. " g=" .. output.g .. " b=" .. output.b)
+			output.a = 1
+		end -- otherwise convert to HSV and fade then back to RGB
+	end
+	-- no return value since all colors are passed by reference anyway
+end
+
 local function updateThreatColor(frame, status, tank, offtank, player, nontank, offheal)
 	local unit, ratio = IsInInstance()
 	if unit and (ratio == "party" or ratio == "raid" or ratio == "scenario") then
@@ -329,7 +422,9 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 			else -- monster is tanked by someone via threat (others must exceed 110% to change it)
 				ratio = ratio / math.max(tank * 1.1, 1)
 			end -- monster is tanked by someone via force (they must exceed 110% after to keep it)
-			ratio = math.min(ratio, 1)
+			
+-- mikfhan TODO: some cases give 0 > ratio > 1 and some of the cases might not be correct de/nom or color below
+			ratio = math.max(0,math.min(ratio, 1))
 		else
 			ratio = 0
 		end
@@ -442,22 +537,12 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		end
 		if not frame.threat then
 			frame.threat = {
-				["color"] = {}
+				["color"] = {r=0, g=0, b=0, a=1}
 			}
-			frame.threat.color.a = 1
 		end
+		gradient(frame.threat.color, color, fader, ratio)
 		frame.threat.lastStatus = status
 		frame.threat.lastRatio = ratio
--- mikfhan TODO: spherical linear interpolation instead of linear to avoid color wheel grays
-		if NPTacct.gradientColor and ratio > 0 then
-			frame.threat.color.r = (color.r + (fader.r - color.r) * ratio) / 255
-			frame.threat.color.g = (color.g + (fader.g - color.g) * ratio) / 255
-			frame.threat.color.b = (color.b + (fader.b - color.b) * ratio) / 255
-		else -- skip fading color by a linear gradient toward the fader
-			frame.threat.color.r = color.r / 255
-			frame.threat.color.g = color.g / 255
-			frame.threat.color.b = color.b / 255
-		end
 		updatePlateColor(frame, false)
 	end
 	return frame, status, tank, offtank, player, nontank, offheal
@@ -539,7 +624,7 @@ NPT:SetScript("OnUpdate", function(self, elapsed)
 		if NPT.thisUpdate >= 1/NPTacct.gradientPrSec then
 			NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
 		end
-	end -- remember "/console reloadui" for any script changes to take effect
+	end -- remember "/reload" for any script changes to take effect
 end)
 function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
 	if enable ~= nil and not enable then
