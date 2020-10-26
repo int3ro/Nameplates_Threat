@@ -282,23 +282,21 @@ local function rgb2hsv(color)
 
 	local h = 0
 	if diff ~= 0 then
-		if cmax == color.r and color.g >= color.b then
-			h = (color.g - color.b) / diff
-		elseif cmax == color.r then
-			h = (color.g - color.b) / diff + 6)
+		if cmax == color.r then
+			h = (color.g - color.b) / diff + 6
 		elseif cmax == color.g then
-			h = (color.b - color.r) / diff + 2
-		elseif cmax == color.b then
-			h = (color.r - color.g) / diff + 4
+			h = (color.b - color.r) / diff + 8
+		else
+			h = (color.r - color.g) / diff + 10
 		end
-		h = h / 6
+		h = (h % 6) / 6
 	end
 	local s = diff / math.max(cmax, 1)
 
 	diff = {}
-	diff.h = h
-	diff.s = s
-	diff.v = cmax
+	diff.h = math.min(math.max(0, h), 1)
+	diff.s = math.min(math.max(0, s), 1)
+	diff.v = math.min(math.max(0, cmax), 1)
 	return diff
 end
 
@@ -336,6 +334,9 @@ local function hsv2rgb(color)
 		i.g = p
 		i.b = q
 	end
+	i.r = math.min(math.max(0, i.r), 1)
+	i.g = math.min(math.max(0, i.g), 1)
+	i.b = math.min(math.max(0, i.b), 1)
 	return i
 end
 
@@ -424,7 +425,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 			end -- monster is tanked by someone via force (they must exceed 110% after to keep it)
 			
 -- mikfhan TODO: some cases give 0 > ratio > 1 and some of the cases might not be correct de/nom or color below
-			ratio = math.max(0,math.min(ratio, 1))
+			ratio = math.min(math.max(0, ratio), 1)
 		else
 			ratio = 0
 		end
