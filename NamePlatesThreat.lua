@@ -80,29 +80,31 @@ local function updatePlateColor(frame, ...)
 			local currentColor = {}
 			if NPTacct.colBorderOnly then
 				if frame.unit and UnitIsUnit(frame.unit, "playertarget") then
-					currentColor.a = frame.name.a
 					currentColor.r = frame.name.r
 					currentColor.g = frame.name.g
 					currentColor.b = frame.name.b
+					currentColor.a = frame.name.a
 				else
-					currentColor.a = frame.healthBar.border.a
 					currentColor.r = frame.healthBar.border.r
 					currentColor.g = frame.healthBar.border.g
 					currentColor.b = frame.healthBar.border.b
+					currentColor.a = frame.healthBar.border.a
 				end
 			else
-				currentColor.a = frame.healthBar.a
 				currentColor.r = frame.healthBar.r
 				currentColor.g = frame.healthBar.g
 				currentColor.b = frame.healthBar.b
+				currentColor.a = frame.healthBar.a
 			end
-			if currentColor.r ~= frame.threat.color.r
+			if currentColor.a ~= frame.threat.color.a
+				or currentColor.r ~= frame.threat.color.r
 				or currentColor.g ~= frame.threat.color.g
 				or currentColor.b ~= frame.threat.color.b
 			then
 				forceUpdate = true
 			end
 		end
+		-- mikfhan TODO: are we sending invalid colors 255 vs 1 range to update plate and then rejected maybe?
 		if forceUpdate then
 			if NPTacct.colBorderOnly then
 				if frame.unit and UnitIsUnit(frame.unit, "playertarget") then
@@ -297,6 +299,7 @@ local function rgb2hsv(color)
 	diff.h = math.min(math.max(0, h), 1)
 	diff.s = math.min(math.max(0, s), 1)
 	diff.v = math.min(math.max(0, cmax), 1)
+	diff.a = color.a
 	return diff
 end
 
@@ -337,6 +340,7 @@ local function hsv2rgb(color)
 	i.r = math.min(math.max(0, i.r), 1)
 	i.g = math.min(math.max(0, i.g), 1)
 	i.b = math.min(math.max(0, i.b), 1)
+	i.a = color.a
 	return i
 end
 
@@ -347,7 +351,6 @@ local function gradient(output, color, fader, ratio)
 	output.r = color.r / 255
 	output.g = color.g / 255
 	output.b = color.b / 255
-	output.a = 1
 	if NPTacct.gradientColor and ratio > 0 then
 		if ratio >= 1 then
 			output.r = fader.r / 255
@@ -355,15 +358,15 @@ local function gradient(output, color, fader, ratio)
 			output.b = fader.b / 255
 		else -- maximum ratio just uses the fader 100%
 			output = rgb2hsv(output)
-			output.a = {r=fader.r/255, g=fader.g/255, b=fader.b/255}
+			output.a = {r=fader.r/255, g=fader.g/255, b=fader.b/255, a=output.a}
 			output.a = rgb2hsv(output.a)
 
 			output.h = (output.h + (output.a.h - output.h) * ratio)
 			output.s = (output.s + (output.a.s - output.s) * ratio)
 			output.v = (output.v + (output.a.v - output.v) * ratio)
+			output.a = output.a.a
 			output = hsv2rgb(output)
 --print(GetServerTime() .. " NPT ratio " .. ratio .. " RGB r=" .. output.r .. " g=" .. output.g .. " b=" .. output.b)
-			output.a = 1
 		end -- otherwise convert to HSV and fade then back to RGB
 	end
 	-- no return value since all colors are passed by reference anyway
@@ -541,9 +544,9 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 				["color"] = {r=0, g=0, b=0, a=1}
 			}
 		end
-		gradient(frame.threat.color, color, fader, ratio)
 		frame.threat.lastStatus = status
 		frame.threat.lastRatio = ratio
+		gradient(frame.threat.color, color, fader, ratio)
 		updatePlateColor(frame, false)
 	end
 	return frame, status, tank, offtank, player, nontank, offheal
