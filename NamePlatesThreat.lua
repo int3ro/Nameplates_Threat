@@ -66,8 +66,9 @@ local function resetFrame(frame)
 			CompactUnitFrame_UpdateName(frame)
 			CompactUnitFrame_UpdateHealthBorder(frame)
 			CompactUnitFrame_UpdateHealthColor(frame)
+			frame.healthBar.border:SetAlpha(1)
 		else
-			frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, frame.healthBar.border.a)
+			frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, 1)
 		end
 		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b, frame.healthBar.a)
 	end
@@ -113,6 +114,11 @@ local function updatePlateColor(frame, ...)
 					frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 				end
 			else
+				if CompactUnitFrame_IsTapDenied(frame) then
+					frame.healthBar.border:SetAlpha(0)
+				else
+					frame.healthBar.border:SetAlpha(1)
+				end
 				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 			end
 		end
@@ -382,7 +388,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 	unit = frame.unit
 
 	if NPTacct.addonsEnabled -- only color nameplates you can attack if addon is active
-		and UnitCanAttack("player", unit) and not CompactUnitFrame_IsTapDenied(frame)
+		and UnitCanAttack("player", unit)
 		and (NPTacct.enableOutside or ratio) -- and outside or players only if enabled
 		and (NPTacct.enablePlayers or not UnitIsPlayer(unit)) then
 
