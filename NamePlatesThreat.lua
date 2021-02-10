@@ -114,7 +114,7 @@ local function updatePlateColor(frame, ...)
 					frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 				end
 			else
-				if CompactUnitFrame_IsTapDenied(frame) then
+				if CompactUnitFrame_IsTapDenied(frame) or frame.unit and UnitIsTapDenied(frame.unit) then
 					frame.healthBar.border:SetAlpha(0)
 				else
 					frame.healthBar.border:SetAlpha(1)
