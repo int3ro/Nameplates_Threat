@@ -241,7 +241,7 @@ local function threatSituation(monster)
 		end
 	end
 	-- default to offtank low threat on a nongroup target if none of the above were a match
-	if targetStatus < 0 and UnitExists(monster .. "target") then
+	if NPTacct.showPetThreat and targetStatus < 0 and UnitExists(monster .. "target") then
 		unit = monster .. "target"
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
 		if NPT.playerRole == "TANK" then
@@ -452,7 +452,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		local color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
 		if UnitIsPlayer(unit) then
 			color = NPTacct.pvPlayerColor
-		elseif UnitReaction(unit, "player") > 3 then
+		elseif UnitReaction(unit, "player") > 3 or UnitExists(unit .. "target") then
 			color = NPTacct.neutralsColor
 		end
 		local fader = color
