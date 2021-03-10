@@ -240,7 +240,8 @@ local function threatSituation(monster)
 			targetStatus = 7
 		end
 	end
-	-- default to offtank low threat on a nongroup target if none of the above were a match
+-- mikfhan TODO: skip offtank coloring for now and rely on neutral color for nongroup nameplates
+--[[	-- default to offtank low threat on a nongroup target if none of the above were a match
 	if NPTacct.showPetThreat and targetStatus < 0 and UnitExists(monster .. "target") then
 		unit = monster .. "target"
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
@@ -270,7 +271,7 @@ local function threatSituation(monster)
 			end
 		end
 	end
-	-- clear threat values if tank was found through monster target instead of threat
+--]]	-- clear threat values if tank was found through monster target instead of threat
 	if targetStatus > -1 and (UnitIsPlayer(monster) or threatStatus < 0) then
 		threatStatus = targetStatus
 		tankValue = 0
