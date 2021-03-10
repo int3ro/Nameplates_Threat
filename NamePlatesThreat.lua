@@ -66,8 +66,9 @@ local function resetFrame(frame)
 			CompactUnitFrame_UpdateName(frame)
 			CompactUnitFrame_UpdateHealthBorder(frame)
 			CompactUnitFrame_UpdateHealthColor(frame)
+			frame.healthBar.border:SetAlpha(1)
 		else
-			frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, frame.healthBar.border.a)
+			frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, 1)
 		end
 		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b, frame.healthBar.a)
 	end
@@ -113,6 +114,11 @@ local function updatePlateColor(frame, ...)
 					frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 				end
 			else
+				if CompactUnitFrame_IsTapDenied(frame) or frame.unit and UnitIsTapDenied(frame.unit) then
+					frame.healthBar.border:SetAlpha(0)
+				else
+					frame.healthBar.border:SetAlpha(1)
+				end
 				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 			end
 		end
@@ -234,8 +240,9 @@ local function threatSituation(monster)
 			targetStatus = 7
 		end
 	end
-	-- default to offtank low threat on a nongroup target if none of the above were a match
-	if targetStatus < 0 and UnitExists(monster .. "target") then
+-- mikfhan TODO: skip offtank coloring for now and rely on neutral color for nongroup nameplates
+--[[	-- default to offtank low threat on a nongroup target if none of the above were a match
+	if NPTacct.showPetThreat and targetStatus < 0 and UnitExists(monster .. "target") then
 		unit = monster .. "target"
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
 		if NPT.playerRole == "TANK" then
@@ -264,7 +271,7 @@ local function threatSituation(monster)
 			end
 		end
 	end
-	-- clear threat values if tank was found through monster target instead of threat
+--]]	-- clear threat values if tank was found through monster target instead of threat
 	if targetStatus > -1 and (UnitIsPlayer(monster) or threatStatus < 0) then
 		threatStatus = targetStatus
 		tankValue = 0
@@ -382,7 +389,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 	unit = frame.unit
 
 	if NPTacct.addonsEnabled -- only color nameplates you can attack if addon is active
-		and UnitCanAttack("player", unit) and not CompactUnitFrame_IsTapDenied(frame)
+		and UnitCanAttack("player", unit)
 		and (NPTacct.enableOutside or ratio) -- and outside or players only if enabled
 		and (NPTacct.enablePlayers or not UnitIsPlayer(unit)) then
 
@@ -446,7 +453,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		local color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
 		if UnitIsPlayer(unit) then
 			color = NPTacct.pvPlayerColor
-		elseif UnitReaction(unit, "player") > 3 then
+		elseif UnitReaction(unit, "player") > 3 or UnitExists(unit .. "target") then
 			color = NPTacct.neutralsColor
 		end
 		local fader = color
