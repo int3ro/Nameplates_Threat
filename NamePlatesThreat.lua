@@ -600,14 +600,15 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" or
 		event == "PLAYER_REGEN_ENABLED" or event == "UNIT_TARGET" or event == "PLAYER_TARGET_CHANGED" then
 		local callback = function()
+			NPT.thisUpdate = 0
 			local nameplates, key, nameplate = {}
 			if InCombatLockdown() then
 				NPT.thisUpdate = nil -- to force enable non combat colors while fighting
 			end
 			for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
 				nameplate = {updateThreatColor(nameplate.UnitFrame)}
-				if not NPTacct.enableNoFight and NPT.thisUpdate and nameplate[2] and nameplate[2] < 0 then
-					table.insert(nameplates, nameplate) -- store for recoloring later
+				if not NPTacct.enableNoFight and NPT.thisUpdate and (not nameplate[2] or nameplate[2] < 0) then
+					table.insert(nameplates, nameplate) -- store to undo/recolor later
 				else
 					NPT.thisUpdate = nil -- meaning we must recolor non combat plates
 				end
