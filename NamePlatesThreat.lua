@@ -240,7 +240,10 @@ local function threatSituation(monster)
 			targetStatus = 7
 		end
 	end
--- mikfhan TODO: skip offtank coloring for now and rely on neutral color for nongroup nameplates
+-- mikfhan TODO: pretend any other combat situation means monster is being offtanked by force
+	if targetStatus < 0 and threatStatus < 0 and UnitAffectingCombat(monster) then
+		targetStatus = 4
+	end
 --[[	-- default to offtank low threat on a nongroup target if none of the above were a match
 	if NPTacct.showPetThreat and targetStatus < 0 and UnitExists(monster .. "target") then
 		unit = monster .. "target"
@@ -618,8 +621,8 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			end
 			NPT.thisUpdate = 0
 		end
-		if event == "PLAYER_REGEN_ENABLED" then
-			C_Timer.NewTimer(5.0, callback)
+		if event == "PLAYER_REGEN_ENABLED" and not NPTacct.gradientColor then
+			C_Timer.NewTimer(20.0, callback)
 		else -- to ensure colors update after combat when mob is back at their spawn
 			callback()
 		end
@@ -913,7 +916,7 @@ function NPTframe:Initialize()
 		NPTframe.youTank3color:GetScript("OnClick")(NPTframe.youTank3color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
 		NPTframe.forcingUnique:GetScript("OnClick")(NPTframe.forcingUnique, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
 		NPTframe.nonTankUnique:GetScript("OnClick")(NPTframe.nonTankUnique, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
-		NPTframe.gradientColor:GetScript("OnClick")(NPTframe.gradientColor, nil, nil, NPT.acct.youTankCombat, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
+	--	NPTframe.gradientColor:GetScript("OnClick")(NPTframe.gradientColor, nil, nil, NPT.acct.youTankCombat, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
 	end)
 	self.youTank7color = self:ColorSwatchCreate("youTank7color", "Healers have High Threat", "", 8, 1)
 	self.youTank7color:SetScript("OnClick", NPTframe.ColorSwatchPostClick)
