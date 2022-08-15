@@ -55,7 +55,6 @@ NPT.offTanks = {}
 NPT.nonTanks = {}
 NPT.offHeals = {}
 NPT.addonIndex = 0
-NPT.isRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 
 local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking the addon
 NPTframe.lastSwatch = nil
@@ -135,7 +134,7 @@ local function getGroupRoles()
 
 -- mikfhan TODO: WoW Classic has no unit spec so determine player role from class?
 	collectedPlayer = UnitGroupRolesAssigned("player")
-	if NPT.isRetail then
+	if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 		collectedPlayer = GetSpecializationRole(GetSpecialization())
 	elseif collectedPlayer == "NONE" then
 		collectedPlayer = "DAMAGER"
@@ -581,7 +580,7 @@ NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED")
 NPT:RegisterEvent("RAID_ROSTER_UPDATE")
-if NPT.isRetail then
+if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 	NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 end
 NPT:RegisterEvent("PLAYER_ENTERING_WORLD")
