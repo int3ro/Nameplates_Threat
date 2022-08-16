@@ -105,7 +105,7 @@ local function updatePlateColor(frame, ...)
 				forceUpdate = true
 			end
 		end
-		-- mikfhan TODO: are we sending invalid colors 255 vs 1 range to update plate and then rejected maybe?
+-- mikfhan TODO: are we sending invalid colors 255 vs 1 range to update plate and then rejected maybe?
 		if forceUpdate then
 			if NPTacct.colBorderOnly then
 				if frame.unit and UnitIsUnit(frame.unit, "playertarget") then
@@ -132,7 +132,15 @@ local function getGroupRoles()
 	local collectedPlayer, unitPrefix, unit, i, unitRole
 	local isInRaid = IsInRaid()
 
-	collectedPlayer = GetSpecializationRole(GetSpecialization())
+-- mikfhan WoW Classic has no unit spec but the talent panel has a default group role
+	collectedPlayer = UnitGroupRolesAssigned("player")
+	if collectedPlayer == "NONE" then
+		if GetNumGroupMembers() > 0 and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+			collectedPlayer = GetSpecializationRole(GetSpecialization())
+		else
+			collectedPlayer = "DAMAGER"
+		end
+	end
 	if UnitExists("pet") then
 		table.insert(collectedTanks, "pet")
 	end
@@ -574,7 +582,9 @@ NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED")
 NPT:RegisterEvent("RAID_ROSTER_UPDATE")
-NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+	NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+end
 NPT:RegisterEvent("PLAYER_ENTERING_WORLD")
 NPT:RegisterEvent("PET_DISMISS_START")
 NPT:RegisterEvent("UNIT_PET")
@@ -944,7 +954,7 @@ function NPTframe:Initialize()
 	self.youTank5color = self:ColorSwatchCreate("youTank5color", "Tanks have High Threat", "", 12, 3)
 	self.youTank5color:SetScript("OnClick", NPTframe.ColorSwatchPostClick)
 
-	self.nonTankUnique = self:CheckButtonCreate("nonTankUnique", "Unique Colors as Non-Tank", "Enable colors below in a non-tank specialization instead of reusing colors to the left.", 8, nil, true)
+	self.nonTankUnique = self:CheckButtonCreate("nonTankUnique", "Unique Colors as Non-Tank", "Enable colors below in a non-tank role or solo instead of reusing the color to its left.", 8, nil, true)
 	self.nonTankUnique:SetScript("OnClick", function(self, button, down, value, enable)
 		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
 		NPTframe.nonTank7color:GetScript("OnClick")(NPTframe.nonTank7color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat and NPT.acct.nonTankUnique)

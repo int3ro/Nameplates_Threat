@@ -1,7 +1,7 @@
-## Interface: 90205
+## Interface: 90207
 ## Title: NamePlatesThreat
 ## Notes: Colors the nameplate healthbar according to threat.
-## Version: 3.1
+## Version: 3.2
 ## Author: int3ro, exochron & mikfhan
 ## SavedVariables: NPTacct
 NamePlatesThreat.lua
