@@ -132,12 +132,14 @@ local function getGroupRoles()
 	local collectedPlayer, unitPrefix, unit, i, unitRole
 	local isInRaid = IsInRaid()
 
--- mikfhan TODO: WoW Classic has no unit spec so determine player role from class?
+-- mikfhan WoW Classic has no unit spec but the talent panel has a default group role
 	collectedPlayer = UnitGroupRolesAssigned("player")
-	if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-		collectedPlayer = GetSpecializationRole(GetSpecialization())
-	elseif collectedPlayer == "NONE" then
-		collectedPlayer = "DAMAGER"
+	if collectedPlayer == "NONE" then
+		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+			collectedPlayer = GetSpecializationRole(GetSpecialization())
+		else
+			collectedPlayer = "DAMAGER"
+		end
 	end
 	if UnitExists("pet") then
 		table.insert(collectedTanks, "pet")
