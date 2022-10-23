@@ -873,9 +873,22 @@ function NPTframe:Initialize()
 	self.subTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -50)
 	self.subTitle:SetJustifyH("LEFT")
 	if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-		self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, Close or X to apply your AddOn changes in yellow below.")
+		self.addonDefault = CreateFrame("Button", "addonDefault", self, "UIPanelButtonTemplate")
+		self.addonDefault:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
+		self.addonDefault:SetText("Defaults")
+		self.addonDefault:SetWidth(100)
+		self.addonDefault:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+		self.addonDefault:SetScript("OnClick", function(self, button, down)
+			if button == "RightButton" then
+				NPTframe.cancel()
+			else
+				NPTframe.default()
+			end
+			NPTframe.refresh()
+		end)
+		self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, X or Close to keep unsaved AddOn changes in yellow below, or click Defaults to reset AddOn options (right-click Defaults instead to only discard yellow unsaved changes).")
 	else
-		self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
+		self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
 	end
 	self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
