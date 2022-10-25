@@ -73,7 +73,7 @@ local function resetFrame(frame)
 		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b, frame.healthBar.a)
 	end
 end
-
+-- mikfhan TODO: above no longer used and below might still taint the UI or something else taints it not sure
 local function updatePlateColor(frame, ...)
 	local forceUpdate = ...
 	if frame.threat then
@@ -122,6 +122,13 @@ local function updatePlateColor(frame, ...)
 				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 			end
 		end
+	elseif frame.healthBar.border then
+		if frame.unit then
+			frame.healthBar.border:SetAlpha(1)
+		else
+			frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, 1)
+		end
+		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b, frame.healthBar.a)
 	end
 end
 
@@ -457,7 +464,9 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		ratio = 0
 	end
 	if not status or not NPTacct.enableNoFight and NPT.thisUpdate and status < 0 then
-		resetFrame(frame) -- only recolor when situation was changed with gradient toward sibling color
+--		resetFrame(frame) -- only recolor when situation was changed with gradient toward sibling color
+		frame.threat = nil
+		CompactUnitFrame_UpdateAll(frame)
 -- mikfhan TODO: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the line below:
 --	elseif not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= ratio then
 	else
@@ -565,14 +574,11 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		frame.threat.lastStatus = status
 		frame.threat.lastRatio = ratio
 		gradient(frame.threat.color, color, fader, ratio)
-		updatePlateColor(frame, false)
+--		updatePlateColor(frame, false)
+		CompactUnitFrame_UpdateAll(frame)
 	end
 	return frame, status, tank, offtank, player, nontank, offheal
 end
-
--- The color is only going to be reset after it was actually changed.
-hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updatePlateColor)
-hooksecurefunc("CompactUnitFrame_UpdateHealthBorder", updatePlateColor)
 
 NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
 NPT:RegisterEvent("UNIT_TARGET")
@@ -591,6 +597,10 @@ NPT:RegisterEvent("UNIT_PET")
 NPT:RegisterEvent("ADDON_LOADED")
 NPT:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and string.upper(arg1) == string.upper("NamePlatesThreat") then
+		-- The color is only going to be reset after it was actually changed.
+		hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updatePlateColor)
+		hooksecurefunc("CompactUnitFrame_UpdateHealthBorder", updatePlateColor)
+--		hooksecurefunc("CompactUnitFrame_UpdateName", updatePlateColor)
 		repeat
 			NPT.addonIndex = NPT.addonIndex + 1
 		until string.upper(GetAddOnInfo(NPT.addonIndex)) == string.upper(arg1)
@@ -602,7 +612,9 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
 		local key, nameplate
 		for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
-			resetFrame(nameplate.UnitFrame)
+--			resetFrame(nameplate.UnitFrame)
+			nameplate.UnitFrame.threat = nil
+			CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
 		end
 		if event == "PLAYER_ENTERING_WORLD" then
 			--InterfaceOptionsFrame_OpenToCategory(NPTframe) --for debugging only
@@ -639,7 +651,9 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "NAME_PLATE_UNIT_REMOVED" then
 		local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
 		if nameplate and nameplate.UnitFrame then
-			resetFrame(nameplate.UnitFrame)
+--			resetFrame(nameplate.UnitFrame)
+			nameplate.UnitFrame.threat = nil
+			CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
 		end
 	end
 end)
@@ -858,7 +872,24 @@ function NPTframe:Initialize()
 	self.subTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -50)
 	self.subTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -50)
 	self.subTitle:SetJustifyH("LEFT")
-	self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset everything below.")
+	if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+		self.addonDefault = CreateFrame("Button", "addonDefault", self, "UIPanelButtonTemplate")
+		self.addonDefault:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
+		self.addonDefault:SetText("Defaults")
+		self.addonDefault:SetWidth(100)
+		self.addonDefault:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+		self.addonDefault:SetScript("OnClick", function(self, button, down)
+			if button == "RightButton" then
+				NPTframe.cancel()
+			else
+				NPTframe.default()
+			end
+			NPTframe.refresh()
+		end)
+		self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, X or Close to keep unsaved AddOn changes in yellow below, or click Defaults to reset AddOn options (right-click Defaults instead to only discard yellow unsaved changes).")
+	else
+		self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
+	end
 	self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
 	self.addonsEnabled = self:CheckButtonCreate("addonsEnabled", "Color Non-Friendly Nameplates", "Enable for AddOn to function.", 1)
