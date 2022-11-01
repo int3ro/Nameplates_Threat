@@ -1,7 +1,7 @@
 local function initVariables(oldAcct) -- only the variables below are used by the addon
 	local newAcct, key, value = {}
 	newAcct["addonsEnabled"] = true  -- color by threat those nameplates you can attack
-	newAcct["colBorderOnly"] = true  -- ignore healthbar and color nameplate border instead
+	newAcct["colBorderOnly"] = false -- ignore healthbar and color nameplate border instead
 	newAcct["showPetThreat"] = false -- include pets as offtanks when coloring nameplates
 	newAcct["enableOutside"] = true  -- also color nameplates outside PvE instances
 	newAcct["enableNoFight"] = true  -- also color nameplates not fighting your group
@@ -34,7 +34,9 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	if oldAcct then -- override defaults with imported values if old keys match new keys
 		--print("oldAcct:Begin")
 		for key, value in pairs(newAcct) do
-			if oldAcct[key] ~= nil then
+			if key == "colBorderOnly" and WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then
+				--print("newAcct:" .. key .. ":" .. "classic skip retail setting")
+			elseif oldAcct[key] ~= nil then
 				if type(newAcct[key]) == "table" then
 					newAcct[key].r, newAcct[key].g, newAcct[key].b = oldAcct[key].r, oldAcct[key].g, oldAcct[key].b
 				else
@@ -909,7 +911,7 @@ function NPTframe:Initialize()
 		NPTframe.neutralsColor:GetScript("OnClick")(NPTframe.neutralsColor, nil, nil, nil, NPT.acct.addonsEnabled)
 
 		NPTframe.gradientColor:GetScript("OnClick")(NPTframe.gradientColor, nil, nil, nil, NPT.acct.addonsEnabled)
-		NPTframe.colBorderOnly:GetScript("OnClick")(NPTframe.colBorderOnly, nil, nil, nil, NPT.acct.addonsEnabled)
+		NPTframe.colBorderOnly:GetScript("OnClick")(NPTframe.colBorderOnly, nil, nil, nil, NPT.acct.addonsEnabled and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 		NPTframe.showPetThreat:GetScript("OnClick")(NPTframe.showPetThreat, nil, nil, nil, NPT.acct.addonsEnabled)
 
 		NPTframe.youTankCombat:GetScript("OnClick")(NPTframe.youTankCombat, nil, nil, nil, NPT.acct.addonsEnabled)
