@@ -1,7 +1,7 @@
 local function initVariables(oldAcct) -- only the variables below are used by the addon
 	local newAcct, key, value = {}
 	newAcct["addonsEnabled"] = true  -- color by threat those nameplates you can attack
-	newAcct["colBorderOnly"] = false -- ignore healthbar and color nameplate border instead
+	newAcct["colBorderOnly"] = true  -- ignore healthbar and color nameplate border instead
 	newAcct["showPetThreat"] = false -- include pets as offtanks when coloring nameplates
 	newAcct["enableOutside"] = true  -- also color nameplates outside PvE instances
 	newAcct["enableNoFight"] = true  -- also color nameplates not fighting your group
@@ -122,7 +122,8 @@ local function updatePlateColor(frame, ...)
 				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 			end
 		end
-	elseif frame.healthBar.border then
+	elseif frame.threat ~= nil and frame.healthBar.border then
+		frame.threat = nil
 		if frame.unit then
 			frame.healthBar.border:SetAlpha(1)
 		else
@@ -465,8 +466,10 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 	end
 	if not status or not NPTacct.enableNoFight and NPT.thisUpdate and status < 0 then
 --		resetFrame(frame) -- only recolor when situation was changed with gradient toward sibling color
-		frame.threat = nil
-		CompactUnitFrame_UpdateAll(frame)
+		if frame.threat then
+			frame.threat = false
+			CompactUnitFrame_UpdateAll(frame)
+		end
 -- mikfhan TODO: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the line below:
 --	elseif not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= ratio then
 	else
@@ -613,8 +616,10 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		local key, nameplate
 		for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
 --			resetFrame(nameplate.UnitFrame)
-			nameplate.UnitFrame.threat = nil
-			CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
+			if nameplate.UnitFrame.threat then
+				nameplate.UnitFrame.threat = false
+				CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
+			end
 		end
 		if event == "PLAYER_ENTERING_WORLD" then
 			--InterfaceOptionsFrame_OpenToCategory(NPTframe) --for debugging only
@@ -652,8 +657,10 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
 		if nameplate and nameplate.UnitFrame then
 --			resetFrame(nameplate.UnitFrame)
-			nameplate.UnitFrame.threat = nil
-			CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
+			if nameplate.UnitFrame.threat then
+				nameplate.UnitFrame.threat = false
+				CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
+			end
 		end
 	end
 end)
