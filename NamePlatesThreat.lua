@@ -9,7 +9,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
 	newAcct["enablePlayers"] = true  -- also color nameplates for player characters
 	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
-	newAcct["gradientColor"] = true  -- update nameplate color gradients (some CPU usage)
+	newAcct["gradientColor"] = false -- update nameplate color gradients (some CPU usage)
 	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
 	newAcct["youTankCombat"] = true  -- unique colors in combat instead of colors above
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
@@ -62,7 +62,7 @@ local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking th
 NPTframe.lastSwatch = nil
 
 local function resetFrame(frame)
-	if frame.threat then
+	if frame.threat ~= nil and frame.healthBar.border then
 		frame.threat = nil
 		if frame.unit then
 			CompactUnitFrame_UpdateName(frame)
@@ -124,14 +124,8 @@ local function updatePlateColor(frame, ...)
 				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 			end
 		end
-	elseif frame.threat ~= nil and frame.healthBar.border then
-		frame.threat = nil
-		if frame.unit then
-			frame.healthBar.border:SetAlpha(1)
-		else
-			frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, 1)
-		end
-		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b, frame.healthBar.a)
+	else
+--		resetFrame(frame)
 	end
 end
 
@@ -467,11 +461,11 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		ratio = 0
 	end
 	if not status or not NPTacct.enableNoFight and NPT.thisUpdate and status < 0 then
---		resetFrame(frame) -- only recolor when situation was changed with gradient toward sibling color
-		if frame.threat then
-			frame.threat = false
-			CompactUnitFrame_UpdateAll(frame)
-		end
+		resetFrame(frame) -- only recolor when situation was changed with gradient toward sibling color
+--		if frame.threat then
+--			frame.threat = false
+--			CompactUnitFrame_UpdateAll(frame)
+--		end
 -- mikfhan TODO: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the line below:
 --	elseif not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= ratio then
 	else
@@ -579,10 +573,29 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 		frame.threat.lastStatus = status
 		frame.threat.lastRatio = ratio
 		gradient(frame.threat.color, color, fader, ratio)
---		updatePlateColor(frame, false)
-		CompactUnitFrame_UpdateAll(frame)
+		updatePlateColor(frame, false)
+--		CompactUnitFrame_UpdateAll(frame)
 	end
 	return frame, status, tank, offtank, player, nontank, offheal
+end
+local function callback()
+	NPT.thisUpdate = 0
+	local nameplates, key, nameplate = {}
+	if InCombatLockdown() then
+		NPT.thisUpdate = nil -- to force enable non combat colors while fighting
+	end
+	for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
+		nameplate = {updateThreatColor(nameplate.UnitFrame)}
+		if not NPTacct.enableNoFight and NPT.thisUpdate and (not nameplate[2] or nameplate[2] < 0) then
+			table.insert(nameplates, nameplate) -- store to undo/recolor later
+		else
+			NPT.thisUpdate = nil -- meaning we must recolor non combat plates
+		end
+	end
+	for key, nameplate in pairs(nameplates) do
+		updateThreatColor(unpack(nameplate)) -- recolor previously stored plates
+	end
+	NPT.thisUpdate = 0
 end
 
 NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -603,8 +616,8 @@ NPT:RegisterEvent("ADDON_LOADED")
 NPT:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and string.upper(arg1) == string.upper("NamePlatesThreat") then
 		-- The color is only going to be reset after it was actually changed.
-		hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updatePlateColor)
-		hooksecurefunc("CompactUnitFrame_UpdateHealthBorder", updatePlateColor)
+--		hooksecurefunc("CompactUnitFrame_UpdateHealthColor", updatePlateColor)
+--		hooksecurefunc("CompactUnitFrame_UpdateHealthBorder", updatePlateColor)
 --		hooksecurefunc("CompactUnitFrame_UpdateName", updatePlateColor)
 		repeat
 			NPT.addonIndex = NPT.addonIndex + 1
@@ -617,11 +630,11 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
 		local key, nameplate
 		for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
---			resetFrame(nameplate.UnitFrame)
-			if nameplate.UnitFrame.threat then
-				nameplate.UnitFrame.threat = false
-				CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
-			end
+			resetFrame(nameplate.UnitFrame)
+--			if nameplate.UnitFrame.threat then
+--				nameplate.UnitFrame.threat = false
+--				CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
+--			end
 		end
 		if event == "PLAYER_ENTERING_WORLD" then
 			--InterfaceOptionsFrame_OpenToCategory(NPTframe) --for debugging only
@@ -631,25 +644,6 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		end
 	elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" or
 		event == "PLAYER_REGEN_ENABLED" or event == "UNIT_TARGET" or event == "PLAYER_TARGET_CHANGED" then
-		local callback = function()
-			NPT.thisUpdate = 0
-			local nameplates, key, nameplate = {}
-			if InCombatLockdown() then
-				NPT.thisUpdate = nil -- to force enable non combat colors while fighting
-			end
-			for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
-				nameplate = {updateThreatColor(nameplate.UnitFrame)}
-				if not NPTacct.enableNoFight and NPT.thisUpdate and (not nameplate[2] or nameplate[2] < 0) then
-					table.insert(nameplates, nameplate) -- store to undo/recolor later
-				else
-					NPT.thisUpdate = nil -- meaning we must recolor non combat plates
-				end
-			end
-			for key, nameplate in pairs(nameplates) do
-				updateThreatColor(unpack(nameplate)) -- recolor previously stored plates
-			end
-			NPT.thisUpdate = 0
-		end
 		if event == "PLAYER_REGEN_ENABLED" and not NPTacct.gradientColor then
 			C_Timer.NewTimer(20.0, callback)
 		else -- to ensure colors update after combat when mob is back at their spawn
@@ -658,11 +652,11 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "NAME_PLATE_UNIT_REMOVED" then
 		local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
 		if nameplate and nameplate.UnitFrame then
---			resetFrame(nameplate.UnitFrame)
-			if nameplate.UnitFrame.threat then
-				nameplate.UnitFrame.threat = false
-				CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
-			end
+			resetFrame(nameplate.UnitFrame)
+--			if nameplate.UnitFrame.threat then
+--				nameplate.UnitFrame.threat = false
+--				CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
+--			end
 		end
 	end
 end)
