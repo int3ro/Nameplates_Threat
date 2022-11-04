@@ -82,7 +82,10 @@ local function updatePlateColor(frame, ...)
 		if not forceUpdate then
 			local currentColor = {}
 			if NPTacct.colBorderOnly then
-				if frame.unit and UnitIsUnit(frame.unit, "playertarget") then
+				if frame.unit and (UnitIsUnit(frame.unit, "target")
+						or UnitIsUnit(frame.unit, "softenemy")
+						or UnitIsUnit(frame.unit, "softfriend")
+						or UnitIsUnit(frame.unit, "softinteract")) then
 					currentColor.r = frame.name.r
 					currentColor.g = frame.name.g
 					currentColor.b = frame.name.b
@@ -110,7 +113,10 @@ local function updatePlateColor(frame, ...)
 -- mikfhan TODO: are we sending invalid colors 255 vs 1 range to update plate and then rejected maybe?
 		if forceUpdate then
 			if NPTacct.colBorderOnly then
-				if frame.unit and UnitIsUnit(frame.unit, "playertarget") then
+				if frame.unit and (UnitIsUnit(frame.unit, "target")
+						or UnitIsUnit(frame.unit, "softenemy")
+						or UnitIsUnit(frame.unit, "softfriend")
+						or UnitIsUnit(frame.unit, "softinteract")) then
 					frame.name:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
 				else
 					frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
@@ -460,7 +466,7 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 	else
 		ratio = 0
 	end
-	if not status or not NPTacct.enableNoFight and NPT.thisUpdate and status < 0 then
+	if not status or not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and status < 0 then
 		resetFrame(frame) -- only recolor when situation was changed with gradient toward sibling color
 --		if frame.threat then
 --			frame.threat = false
@@ -579,21 +585,21 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 	return frame, status, tank, offtank, player, nontank, offheal
 end
 local function callback()
-	NPT.thisUpdate = 0
+	NPT.thisUpdate = false
 	local nameplates, key, nameplate = {}
 	if InCombatLockdown() then
 		NPT.thisUpdate = nil -- to force enable non combat colors while fighting
 	end
 	for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
 		nameplate = {updateThreatColor(nameplate.UnitFrame)}
-		if not NPTacct.enableNoFight and NPT.thisUpdate and (not nameplate[2] or nameplate[2] < 0) then
-			table.insert(nameplates, nameplate) -- store to undo/recolor later
+		if not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and (not nameplate[2] or nameplate[2] < 0) then
+			table.insert(nameplates, nameplate) -- these may need recolor if group combat is discovered
 		else
-			NPT.thisUpdate = nil -- meaning we must recolor non combat plates
+			NPT.thisUpdate = nil -- we discovered group combat but those ignored before need recoloring
 		end
 	end
 	for key, nameplate in pairs(nameplates) do
-		updateThreatColor(unpack(nameplate)) -- recolor previously stored plates
+		updateThreatColor(unpack(nameplate)) -- recolor those we ignored before group combat was discovered
 	end
 	NPT.thisUpdate = 0
 end
@@ -608,6 +614,9 @@ NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED")
 NPT:RegisterEvent("RAID_ROSTER_UPDATE")
 if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 	NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+	NPT:RegisterEvent("PLAYER_SOFT_INTERACT_CHANGED")
+	NPT:RegisterEvent("PLAYER_SOFT_FRIEND_CHANGED")
+	NPT:RegisterEvent("PLAYER_SOFT_ENEMY_CHANGED")
 end
 NPT:RegisterEvent("PLAYER_ENTERING_WORLD")
 NPT:RegisterEvent("PET_DISMISS_START")
@@ -640,13 +649,18 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			--InterfaceOptionsFrame_OpenToCategory(NPTframe) --for debugging only
 			--InterfaceOptionsFrame_OpenToCategory(NPTframe) --must call it twice
 		else
-			self:GetScript("OnEvent")(self, "UNIT_THREAT_SITUATION_UPDATE")
+			callback()
 		end
-	elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" or
-		event == "PLAYER_REGEN_ENABLED" or event == "UNIT_TARGET" or event == "PLAYER_TARGET_CHANGED" then
-		if event == "PLAYER_REGEN_ENABLED" and not NPTacct.gradientColor then
-			C_Timer.NewTimer(20.0, callback)
-		else -- to ensure colors update after combat when mob is back at their spawn
+	elseif not NPTacct.gradientColor and
+		(event == "UNIT_THREAT_SITUATION_UPDATE" or event == "UNIT_TARGET" or 
+		event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_SOFT_INTERACT_CHANGED" or
+		event == "PLAYER_SOFT_FRIEND_CHANGED" or event == "PLAYER_SOFT_ENEMY_CHANGED" or
+		event == "PLAYER_REGEN_ENABLED" or event == "NAME_PLATE_UNIT_ADDED") then
+		if event == "PLAYER_REGEN_ENABLED" then -- keep trying until mobs back at spawn
+			C_Timer.NewTicker(1.0, callback, 30)
+		elseif NPTacct.colBorderOnly then -- soft targets need a short delay for border
+			C_Timer.NewTimer(1/NPTacct.gradientPrSec, callback)
+		else -- otherwise we can just do the coloring immediately without delays needed
 			callback()
 		end
 	elseif event == "NAME_PLATE_UNIT_REMOVED" then
@@ -661,10 +675,10 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 	end
 end)
 NPT:SetScript("OnUpdate", function(self, elapsed)
-	if NPTacct.addonsEnabled and NPTacct.gradientColor then
+	if NPTacct.addonsEnabled and NPTacct.gradientColor and NPT.thisUpdate then
 		NPT.thisUpdate = NPT.thisUpdate + elapsed
 		if NPT.thisUpdate >= 1/NPTacct.gradientPrSec then
-			NPT:GetScript("OnEvent")(NPT, "UNIT_THREAT_SITUATION_UPDATE")
+			callback()
 		end
 	end -- remember "/reload" for any script changes to take effect
 end)
