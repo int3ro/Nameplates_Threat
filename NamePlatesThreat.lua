@@ -57,55 +57,59 @@ NPT.offTanks = {}
 NPT.nonTanks = {}
 NPT.offHeals = {}
 NPT.addonIndex = 0
+NPT.threat = {}
 
 local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking the addon
 NPTframe.lastSwatch = nil
 
-local function resetFrame(frame)
-	if frame.threat ~= nil and frame.healthBar.border then
-		frame.threat = nil
-		if frame.unit then
-			CompactUnitFrame_UpdateName(frame)
-			CompactUnitFrame_UpdateHealthBorder(frame)
-			CompactUnitFrame_UpdateHealthColor(frame)
-			frame.healthBar.border:SetAlpha(1)
+local function resetFrame(plate)
+	if plate.UnitFrame then
+		if plate.UnitFrame.unit then
+			CompactUnitFrame_UpdateName(plate.UnitFrame)
+			CompactUnitFrame_UpdateHealthBorder(plate.UnitFrame)
+			CompactUnitFrame_UpdateHealthColor(plate.UnitFrame)
+			plate.UnitFrame.healthBar.border:SetAlpha(1)
 		else
-			frame.healthBar.border:SetVertexColor(frame.healthBar.border.r, frame.healthBar.border.g, frame.healthBar.border.b, 1)
+			plate.UnitFrame.healthBar.border:SetVertexColor(plate.UnitFrame.healthBar.border.r, plate.UnitFrame.healthBar.border.g, plate.UnitFrame.healthBar.border.b, 1)
 		end
-		frame.healthBar:SetStatusBarColor(frame.healthBar.r, frame.healthBar.g, frame.healthBar.b, frame.healthBar.a)
+		plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a)
+	end
+	if NPT.threat[plate.namePlateUnitToken] ~= nil then
+		NPT.threat[plate.namePlateUnitToken] = nil
 	end
 end
 -- mikfhan TODO: above no longer used and below might still taint the UI or something else taints it not sure
-local function updatePlateColor(frame, ...)
+local function updatePlateColor(plate, ...)
 	local forceUpdate = ...
-	if frame.threat then
+	if NPT.threat[plate.namePlateUnitToken] then
+		local unit = plate.UnitFrame.unit
 		if not forceUpdate then
 			local currentColor = {}
 			if NPTacct.colBorderOnly then
-				if frame.unit and (UnitIsUnit(frame.unit, "target")
-						or UnitIsUnit(frame.unit, "softenemy")
-						or UnitIsUnit(frame.unit, "softfriend")
-						or UnitIsUnit(frame.unit, "softinteract")) then
-					currentColor.r = frame.name.r
-					currentColor.g = frame.name.g
-					currentColor.b = frame.name.b
-					currentColor.a = frame.name.a
+				if unit and (UnitIsUnit(unit, "target")
+					or UnitIsUnit(unit, "softenemy")
+					or UnitIsUnit(unit, "softfriend")
+					or UnitIsUnit(unit, "softinteract")) then
+					currentColor.r = plate.UnitFrame.name.r
+					currentColor.g = plate.UnitFrame.name.g
+					currentColor.b = plate.UnitFrame.name.b
+					currentColor.a = plate.UnitFrame.name.a
 				else
-					currentColor.r = frame.healthBar.border.r
-					currentColor.g = frame.healthBar.border.g
-					currentColor.b = frame.healthBar.border.b
-					currentColor.a = frame.healthBar.border.a
+					currentColor.r = plate.UnitFrame.healthBar.border.r
+					currentColor.g = plate.UnitFrame.healthBar.border.g
+					currentColor.b = plate.UnitFrame.healthBar.border.b
+					currentColor.a = plate.UnitFrame.healthBar.border.a
 				end
 			else
-				currentColor.r = frame.healthBar.r
-				currentColor.g = frame.healthBar.g
-				currentColor.b = frame.healthBar.b
-				currentColor.a = frame.healthBar.a
+				currentColor.r = plate.UnitFrame.healthBar.r
+				currentColor.g = plate.UnitFrame.healthBar.g
+				currentColor.b = plate.UnitFrame.healthBar.b
+				currentColor.a = plate.UnitFrame.healthBar.a
 			end
-			if currentColor.a ~= frame.threat.color.a
-				or currentColor.r ~= frame.threat.color.r
-				or currentColor.g ~= frame.threat.color.g
-				or currentColor.b ~= frame.threat.color.b
+			if currentColor.a ~= NPT.threat[plate.namePlateUnitToken].color.a
+			or currentColor.r ~= NPT.threat[plate.namePlateUnitToken].color.r
+			or currentColor.g ~= NPT.threat[plate.namePlateUnitToken].color.g
+			or currentColor.b ~= NPT.threat[plate.namePlateUnitToken].color.b
 			then
 				forceUpdate = true
 			end
@@ -113,25 +117,29 @@ local function updatePlateColor(frame, ...)
 -- mikfhan TODO: are we sending invalid colors 255 vs 1 range to update plate and then rejected maybe?
 		if forceUpdate then
 			if NPTacct.colBorderOnly then
-				if frame.unit and (UnitIsUnit(frame.unit, "target")
-						or UnitIsUnit(frame.unit, "softenemy")
-						or UnitIsUnit(frame.unit, "softfriend")
-						or UnitIsUnit(frame.unit, "softinteract")) then
-					frame.name:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+				if unit and (UnitIsUnit(unit, "target")
+					or UnitIsUnit(unit, "softenemy")
+					or UnitIsUnit(unit, "softfriend")
+					or UnitIsUnit(unit, "softinteract")) then
+					plate.UnitFrame.name:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
 				else
-					frame.healthBar.border:SetVertexColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+					plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
 				end
 			else
-				if CompactUnitFrame_IsTapDenied(frame) or frame.unit and UnitIsTapDenied(frame.unit) then
-					frame.healthBar.border:SetAlpha(0)
+				if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or unit and UnitIsTapDenied(unit) then
+					plate.UnitFrame.healthBar.border:SetAlpha(0)
 				else
-					frame.healthBar.border:SetAlpha(1)
+					plate.UnitFrame.healthBar.border:SetAlpha(1)
 				end
-				frame.healthBar:SetStatusBarColor(frame.threat.color.r, frame.threat.color.g, frame.threat.color.b, frame.threat.color.a)
+				plate.UnitFrame.healthBar:SetStatusBarColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
 			end
 		end
 	else
---		resetFrame(frame)
+--		resetFrame(plate)
+--		if NPT.threat[plate.namePlateUnitToken] then
+--			NPT.threat[plate.namePlateUnitToken] = false
+--			CompactUnitFrame_UpdateAll(plate.UnitFrame)
+--		end
 	end
 end
 
@@ -400,14 +408,14 @@ local function gradient(output, color, fader, ratio)
 	-- no return value since all colors are passed by reference anyway
 end
 
-local function updateThreatColor(frame, status, tank, offtank, player, nontank, offheal)
+local function updateThreatColor(plate, status, tank, offtank, player, nontank, offheal)
 	local unit, ratio = IsInInstance()
 	if unit and (ratio == "party" or ratio == "raid" or ratio == "scenario") then
 		ratio = true -- indicates a PvE instance
 	else
 		ratio = false -- PvP or non-instance zone
 	end
-	unit = frame.unit
+	unit = plate.UnitFrame.unit
 
 	if NPTacct.addonsEnabled -- only color nameplates you can attack if addon is active
 		and UnitCanAttack("player", unit)
@@ -461,19 +469,19 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 			ratio = 0
 		end
 		if not unit then
-			unit = frame.unit
+			unit = plate.UnitFrame.unit
 		end
 	else
 		ratio = 0
 	end
 	if not status or not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and status < 0 then
-		resetFrame(frame) -- only recolor when situation was changed with gradient toward sibling color
---		if frame.threat then
---			frame.threat = false
---			CompactUnitFrame_UpdateAll(frame)
+		resetFrame(plate) -- only recolor when situation was changed with gradient toward sibling color
+--		if NPT.threat[plate.namePlateUnitToken] then
+--			NPT.threat[plate.namePlateUnitToken] = false
+--			CompactUnitFrame_UpdateAll(plate.UnitFrame)
 --		end
 -- mikfhan TODO: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the line below:
---	elseif not frame.threat or frame.threat.lastStatus ~= status or frame.threat.lastRatio ~= ratio then
+--	elseif not NPT.threat[plate.namePlateUnitToken] or NPT.threat[plate.namePlateUnitToken].lastStatus ~= status or NPT.threat[plate.namePlateUnitToken].lastRatio ~= ratio then
 	else
 		local color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
 		if UnitIsPlayer(unit) then
@@ -571,35 +579,35 @@ local function updateThreatColor(frame, status, tank, offtank, player, nontank, 
 				fader = NPTacct["nonTank" .. fader .. "color"]
 			end
 		end
-		if not frame.threat then
-			frame.threat = {
+		if not NPT.threat[plate.namePlateUnitToken] then
+			NPT.threat[plate.namePlateUnitToken] = {
 				["color"] = {r=0, g=0, b=0, a=1}
 			}
 		end
-		frame.threat.lastStatus = status
-		frame.threat.lastRatio = ratio
-		gradient(frame.threat.color, color, fader, ratio)
-		updatePlateColor(frame, false)
---		CompactUnitFrame_UpdateAll(frame)
+		NPT.threat[plate.namePlateUnitToken].lastStatus = status
+		NPT.threat[plate.namePlateUnitToken].lastRatio = ratio
+		gradient(NPT.threat[plate.namePlateUnitToken].color, color, fader, ratio)
+		updatePlateColor(plate, false)
+--		CompactUnitFrame_UpdateAll(plate.UnitFrame)
 	end
-	return frame, status, tank, offtank, player, nontank, offheal
+	return plate, status, tank, offtank, player, nontank, offheal
 end
 local function callback()
 	NPT.thisUpdate = false
-	local nameplates, key, nameplate = {}
+	local nameplates, key, plate = {}
 	if InCombatLockdown() then
 		NPT.thisUpdate = nil -- to force enable non combat colors while fighting
 	end
-	for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
-		nameplate = {updateThreatColor(nameplate.UnitFrame)}
-		if not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and (not nameplate[2] or nameplate[2] < 0) then
-			table.insert(nameplates, nameplate) -- these may need recolor if group combat is discovered
+	for key, plate in pairs(C_NamePlate.GetNamePlates()) do
+		plate = {updateThreatColor(plate)}
+		if not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and (not plate[2] or plate[2] < 0) then
+			table.insert(nameplates, plate) -- these may need recolor if group combat is discovered
 		else
 			NPT.thisUpdate = nil -- we discovered group combat but those ignored before need recoloring
 		end
 	end
-	for key, nameplate in pairs(nameplates) do
-		updateThreatColor(unpack(nameplate)) -- recolor those we ignored before group combat was discovered
+	for key, plate in pairs(nameplates) do
+		updateThreatColor(unpack(plate)) -- recolor those we ignored before group combat was discovered
 	end
 	NPT.thisUpdate = 0
 end
@@ -637,12 +645,12 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
 		event == "PET_DISMISS_START" or event == "UNIT_PET" then
 		NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
-		local key, nameplate
-		for key, nameplate in pairs(C_NamePlate.GetNamePlates()) do
-			resetFrame(nameplate.UnitFrame)
---			if nameplate.UnitFrame.threat then
---				nameplate.UnitFrame.threat = false
---				CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
+		local key, plate
+		for key, plate in pairs(C_NamePlate.GetNamePlates()) do
+			resetFrame(plate)
+--			if NPT.threat[plate.namePlateUnitToken] then
+--				NPT.threat[plate.namePlateUnitToken] = false
+--				CompactUnitFrame_UpdateAll(plate.UnitFrame)
 --			end
 		end
 		if event == "PLAYER_ENTERING_WORLD" then
@@ -664,12 +672,12 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			callback()
 		end
 	elseif event == "NAME_PLATE_UNIT_REMOVED" then
-		local nameplate = C_NamePlate.GetNamePlateForUnit(arg1)
-		if nameplate and nameplate.UnitFrame then
-			resetFrame(nameplate.UnitFrame)
---			if nameplate.UnitFrame.threat then
---				nameplate.UnitFrame.threat = false
---				CompactUnitFrame_UpdateAll(nameplate.UnitFrame)
+		local plate = C_NamePlate.GetNamePlateForUnit(arg1)
+		if plate and plate.UnitFrame then
+			resetFrame(plate)
+--			if NPT.threat[plate.namePlateUnitToken] then
+--				NPT.threat[plate.namePlateUnitToken] = false
+--				CompactUnitFrame_UpdateAll(plate.UnitFrame)
 --			end
 		end
 	end
