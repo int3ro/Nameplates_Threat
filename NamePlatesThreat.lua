@@ -51,8 +51,8 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 end
 
 local NPT = CreateFrame("Frame", nil, UIParent) -- invisible frame handling addon logic
+NPT.playerRole = "DAMAGER"
 NPT.thisUpdate = 0
-NPT.playerRole = 0
 NPT.offTanks = {}
 NPT.nonTanks = {}
 NPT.offHeals = {}
@@ -64,15 +64,37 @@ NPTframe.lastSwatch = nil
 
 local function resetFrame(plate)
 	if plate.UnitFrame then
-		if plate.UnitFrame.unit then
-			CompactUnitFrame_UpdateName(plate.UnitFrame)
-			CompactUnitFrame_UpdateHealthBorder(plate.UnitFrame)
-			CompactUnitFrame_UpdateHealthColor(plate.UnitFrame)
-			plate.UnitFrame.healthBar.border:SetAlpha(1)
-		else
-			plate.UnitFrame.healthBar.border:SetVertexColor(plate.UnitFrame.healthBar.border.r, plate.UnitFrame.healthBar.border.g, plate.UnitFrame.healthBar.border.b, 1)
-		end
+--		if plate.UnitFrame.unit then
+--			CompactUnitFrame_UpdateName(plate.UnitFrame)
+--			CompactUnitFrame_UpdateHealthBorder(plate.UnitFrame)
+--			CompactUnitFrame_UpdateHealthColor(plate.UnitFrame)
+--			plate.UnitFrame.healthBar.border:SetAlpha(1)
+--		else
+--			plate.UnitFrame.healthBar.border:SetVertexColor(plate.UnitFrame.healthBar.border.r, plate.UnitFrame.healthBar.border.g, plate.UnitFrame.healthBar.border.b, 1)
+--		end
+-- mikfhan TODO: above CompactUnitFrame gives taint and border setvertexcolor does nothing on addon options okay click maybe since it just reads current instead of blizzard default?
 		plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a)
+		plate.UnitFrame.healthBar.border:SetAlpha(1)
+-- mikfhan TODO: below also does not reset border color when it or addon itself is toggled so after okay you end up with both healthbar and border colored until you change targets
+--		if NPTacct.colBorderOnly or not NPT.playerRole then
+--			local currentColor = plate.UnitFrame.healthBar.border:GetVertexColor()
+--			local unit = plate.UnitFrame.unit
+--			currentColor.r = 0
+--			currentColor.g = 0
+--			currentColor.b = 0
+--			if unit and UnitIsUnit(unit, "target") then
+--				currentColor.r = 1
+--				currentColor.g = 1
+--				currentColor.b = 1
+--			elseif unit and (UnitIsUnit(unit, "softenemy")
+--					or UnitIsUnit(unit, "softfriend")
+--					or UnitIsUnit(unit, "softinteract")) then
+--				currentColor.r = 0.5
+--				currentColor.g = 0.5
+--				currentColor.b = 0.5
+--			end
+--			plate.UnitFrame.healthBar.border:SetVertexColor(currentColor.r, currentColor.g, currentColor.b, 1)
+--		end
 	end
 	if NPT.threat[plate.namePlateUnitToken] ~= nil then
 		NPT.threat[plate.namePlateUnitToken] = nil
@@ -630,6 +652,7 @@ NPT:RegisterEvent("PLAYER_ENTERING_WORLD")
 NPT:RegisterEvent("PET_DISMISS_START")
 NPT:RegisterEvent("UNIT_PET")
 NPT:RegisterEvent("ADDON_LOADED")
+
 NPT:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and string.upper(arg1) == string.upper("NamePlatesThreat") then
 		-- The color is only going to be reset after it was actually changed.
@@ -644,7 +667,6 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
 		event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
 		event == "PET_DISMISS_START" or event == "UNIT_PET" then
-		NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
 		local key, plate
 		for key, plate in pairs(C_NamePlate.GetNamePlates()) do
 			resetFrame(plate)
@@ -653,12 +675,8 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 --				CompactUnitFrame_UpdateAll(plate.UnitFrame)
 --			end
 		end
-		if event == "PLAYER_ENTERING_WORLD" then
-			--InterfaceOptionsFrame_OpenToCategory(NPTframe) --for debugging only
-			--InterfaceOptionsFrame_OpenToCategory(NPTframe) --must call it twice
-		else
-			callback()
-		end
+		NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
+		C_Timer.NewTimer(1/NPTacct.gradientPrSec, callback)
 	elseif not NPTacct.gradientColor and
 		(event == "UNIT_THREAT_SITUATION_UPDATE" or event == "UNIT_TARGET" or 
 		event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_SOFT_INTERACT_CHANGED" or
@@ -690,6 +708,7 @@ NPT:SetScript("OnUpdate", function(self, elapsed)
 		end
 	end -- remember "/reload" for any script changes to take effect
 end)
+
 function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
 	if enable ~= nil and not enable then
 		if NPTframe.lastSwatch and NPTframe.lastSwatch == self then
@@ -834,8 +853,12 @@ function NPTframe.SliderOnValueChanged(self, button, down, value, enable)
 	--print(GetServerTime() .. " NPTframe." .. self:GetName() .. "(): NPT.acct." .. self:GetName() .. "=" .. tostring(NPT.acct[self:GetName()]))
 end
 function NPTframe.okay()
+	if NPT.acct.colBorderOnly ~= NPTacct.colBorderOnly then
+		NPT.playerRole = false
+--		--print("newBorderOnly:" .. tostring(NPT.acct.colBorderOnly) .. " oldBorderOnly:" .. tostring(NPTacct.colBorderOnly))
+	end -- above we flag old border coloring was inverted before resetting frames
 	NPTacct = initVariables(NPT.acct) -- store panel fields into addon variables
-	NPT:GetScript("OnEvent")(NPT, "PLAYER_SPECIALIZATION_CHANGED")
+	NPT:GetScript("OnEvent")(NPT, "PLAYER_ENTERING_WORLD")
 end
 function NPTframe.cancel()
 	NPT.acct = initVariables(NPTacct) -- restore panel fields from addon variables
