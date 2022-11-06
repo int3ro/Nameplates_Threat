@@ -9,8 +9,8 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
 	newAcct["enablePlayers"] = true  -- also color nameplates for player characters
 	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
-	newAcct["gradientColor"] = false -- update nameplate color gradients (some CPU usage)
-	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
+	newAcct["gradientColor"] = true -- update nameplate color gradients (some CPU usage)
+	newAcct["gradientPrSec"] = 1	 -- update color gradients this many times per second
 	newAcct["youTankCombat"] = true  -- unique colors in combat instead of colors above
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
 	newAcct["youTank0color"] = {r=255, g=153, b=  0} -- orange others tanking by threat
@@ -634,24 +634,31 @@ local function callback()
 	NPT.thisUpdate = 0
 end
 
-NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
-NPT:RegisterEvent("UNIT_TARGET")
-NPT:RegisterEvent("PLAYER_REGEN_ENABLED")
-NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
-NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
-NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+--NPT:RegisterEvent("UNIT_TARGET")
+--NPT:RegisterEvent("UNIT_COMBAT")
+--NPT:RegisterEvent("UNIT_ATTACK")
+--NPT:RegisterEvent("UNIT_DEFENSE")
+--NPT:RegisterEvent("PLAYER_REGEN_DISABLED")
+--NPT:RegisterEvent("PLAYER_ENTER_COMBAT")
+--NPT:RegisterEvent("PLAYER_LEAVE_COMBAT")
+--NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
+NPT:RegisterEvent("ADDON_LOADED")
+NPT:RegisterEvent("PLAYER_ENTERING_WORLD")
 NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED")
 NPT:RegisterEvent("RAID_ROSTER_UPDATE")
+NPT:RegisterEvent("PET_DISMISS_START")
+NPT:RegisterEvent("UNIT_PET")
 if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 	NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_INTERACT_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_FRIEND_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_ENEMY_CHANGED")
 end
-NPT:RegisterEvent("PLAYER_ENTERING_WORLD")
-NPT:RegisterEvent("PET_DISMISS_START")
-NPT:RegisterEvent("UNIT_PET")
-NPT:RegisterEvent("ADDON_LOADED")
+NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
+NPT:RegisterEvent("UNIT_THREAT_LIST_UPDATE")
+NPT:RegisterEvent("PLAYER_REGEN_ENABLED")
+NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 
 NPT:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and string.upper(arg1) == string.upper("NamePlatesThreat") then
@@ -664,9 +671,9 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		until string.upper(GetAddOnInfo(NPT.addonIndex)) == string.upper(arg1)
 		NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
 		NPTframe:Initialize()
-	elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" or
-		event == "PLAYER_ROLES_ASSIGNED" or event == "RAID_ROSTER_UPDATE" or
-		event == "PET_DISMISS_START" or event == "UNIT_PET" then
+	elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_ROLES_ASSIGNED" or
+		event == "RAID_ROSTER_UPDATE" or event == "PET_DISMISS_START" or event == "UNIT_PET" or
+		event == "PLAYER_SPECIALIZATION_CHANGED" then
 		local key, plate
 		for key, plate in pairs(C_NamePlate.GetNamePlates()) do
 			resetFrame(plate)
@@ -677,16 +684,15 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		end
 		NPT.threat = {}
 		NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
-		C_Timer.NewTimer(0.3, callback)
-	elseif not NPTacct.gradientColor and
-		(event == "UNIT_THREAT_SITUATION_UPDATE" or event == "UNIT_TARGET" or 
-		event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_SOFT_INTERACT_CHANGED" or
-		event == "PLAYER_SOFT_FRIEND_CHANGED" or event == "PLAYER_SOFT_ENEMY_CHANGED" or
-		event == "PLAYER_REGEN_ENABLED" or event == "NAME_PLATE_UNIT_ADDED") then
+		C_Timer.NewTimer(0.1, callback)
+	elseif event == "PLAYER_SOFT_INTERACT_CHANGED" or event == "PLAYER_SOFT_FRIEND_CHANGED" or
+		event == "PLAYER_SOFT_ENEMY_CHANGED" or event == "NAME_PLATE_UNIT_ADDED" or
+		event == "PLAYER_TARGET_CHANGED" or event == "UNIT_THREAT_LIST_UPDATE" or
+		event == "PLAYER_REGEN_ENABLED" then
 		if event == "PLAYER_REGEN_ENABLED" then -- keep trying until mobs back at spawn
 			C_Timer.NewTimer(20.0, callback)
 		elseif NPTacct.colBorderOnly then -- soft targets need a short delay for border
-			C_Timer.NewTimer(0.3, callback)
+			C_Timer.NewTimer(0.1, callback)
 		else -- otherwise we can just do the coloring immediately without delays needed
 			callback()
 		end
