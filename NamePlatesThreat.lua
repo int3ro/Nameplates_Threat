@@ -108,20 +108,20 @@ local function updatePlateColor(plate, ...)
 		if not forceUpdate then
 			local currentColor = {}
 			if NPTacct.colBorderOnly then
-				if unit and (UnitIsUnit(unit, "target")
-					or UnitIsUnit(unit, "softenemy")
-					or UnitIsUnit(unit, "softfriend")
-					or UnitIsUnit(unit, "softinteract")) then
-					currentColor.r = plate.UnitFrame.name.r
-					currentColor.g = plate.UnitFrame.name.g
-					currentColor.b = plate.UnitFrame.name.b
-					currentColor.a = plate.UnitFrame.name.a
-				else
+			--	if unit and (UnitIsUnit(unit, "target")
+			--		or UnitIsUnit(unit, "softenemy")
+			--		or UnitIsUnit(unit, "softfriend")
+			--		or UnitIsUnit(unit, "softinteract")) then
+			--		currentColor.r = plate.UnitFrame.name.r
+			--		currentColor.g = plate.UnitFrame.name.g
+			--		currentColor.b = plate.UnitFrame.name.b
+			--		currentColor.a = plate.UnitFrame.name.a
+			--	else
 					currentColor.r = plate.UnitFrame.healthBar.border.r
 					currentColor.g = plate.UnitFrame.healthBar.border.g
 					currentColor.b = plate.UnitFrame.healthBar.border.b
 					currentColor.a = plate.UnitFrame.healthBar.border.a
-				end
+			--	end
 			else
 				currentColor.r = plate.UnitFrame.healthBar.r
 				currentColor.g = plate.UnitFrame.healthBar.g
@@ -139,14 +139,14 @@ local function updatePlateColor(plate, ...)
 -- mikfhan TODO: are we sending invalid colors 255 vs 1 range to update plate and then rejected maybe?
 		if forceUpdate then
 			if NPTacct.colBorderOnly then
-				if unit and (UnitIsUnit(unit, "target")
-					or UnitIsUnit(unit, "softenemy")
-					or UnitIsUnit(unit, "softfriend")
-					or UnitIsUnit(unit, "softinteract")) then
-					plate.UnitFrame.name:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
-				else
+			--	if unit and (UnitIsUnit(unit, "target")
+			--		or UnitIsUnit(unit, "softenemy")
+			--		or UnitIsUnit(unit, "softfriend")
+			--		or UnitIsUnit(unit, "softinteract")) then
+			--		plate.UnitFrame.name:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
+			--	else
 					plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
-				end
+			--	end
 			else
 				if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or unit and UnitIsTapDenied(unit) then
 					plate.UnitFrame.healthBar.border:SetAlpha(0)
@@ -675,17 +675,18 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 --				CompactUnitFrame_UpdateAll(plate.UnitFrame)
 --			end
 		end
+		NPT.threat = {}
 		NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
-		C_Timer.NewTimer(1/NPTacct.gradientPrSec, callback)
+		C_Timer.NewTimer(0.3, callback)
 	elseif not NPTacct.gradientColor and
 		(event == "UNIT_THREAT_SITUATION_UPDATE" or event == "UNIT_TARGET" or 
 		event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_SOFT_INTERACT_CHANGED" or
 		event == "PLAYER_SOFT_FRIEND_CHANGED" or event == "PLAYER_SOFT_ENEMY_CHANGED" or
 		event == "PLAYER_REGEN_ENABLED" or event == "NAME_PLATE_UNIT_ADDED") then
 		if event == "PLAYER_REGEN_ENABLED" then -- keep trying until mobs back at spawn
-			C_Timer.NewTicker(1.0, callback, 30)
+			C_Timer.NewTimer(20.0, callback)
 		elseif NPTacct.colBorderOnly then -- soft targets need a short delay for border
-			C_Timer.NewTimer(1/NPTacct.gradientPrSec, callback)
+			C_Timer.NewTimer(0.3, callback)
 		else -- otherwise we can just do the coloring immediately without delays needed
 			callback()
 		end
