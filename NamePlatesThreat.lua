@@ -10,7 +10,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["enablePlayers"] = true  -- also color nameplates for player characters
 	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
 	newAcct["gradientColor"] = true -- update nameplate color gradients (some CPU usage)
-	newAcct["gradientPrSec"] = 1	 -- update color gradients this many times per second
+	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
 	newAcct["youTankCombat"] = true  -- unique colors in combat instead of colors above
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
 	newAcct["youTank0color"] = {r=255, g=153, b=  0} -- orange others tanking by threat
@@ -634,7 +634,6 @@ local function callback()
 	NPT.thisUpdate = 0
 end
 
---NPT:RegisterEvent("UNIT_TARGET")
 --NPT:RegisterEvent("UNIT_COMBAT")
 --NPT:RegisterEvent("UNIT_ATTACK")
 --NPT:RegisterEvent("UNIT_DEFENSE")
@@ -657,6 +656,7 @@ end
 NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
 NPT:RegisterEvent("UNIT_THREAT_LIST_UPDATE")
+NPT:RegisterEvent("UNIT_TARGET")
 NPT:RegisterEvent("PLAYER_REGEN_ENABLED")
 NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 
@@ -688,7 +688,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "PLAYER_SOFT_INTERACT_CHANGED" or event == "PLAYER_SOFT_FRIEND_CHANGED" or
 		event == "PLAYER_SOFT_ENEMY_CHANGED" or event == "NAME_PLATE_UNIT_ADDED" or
 		event == "PLAYER_TARGET_CHANGED" or event == "UNIT_THREAT_LIST_UPDATE" or
-		event == "PLAYER_REGEN_ENABLED" then
+		event == "UNIT_TARGET" or event == "PLAYER_REGEN_ENABLED" then
 		if event == "PLAYER_REGEN_ENABLED" then -- keep trying until mobs back at spawn
 			C_Timer.NewTimer(20.0, callback)
 		elseif NPTacct.colBorderOnly then -- soft targets need a short delay for border
