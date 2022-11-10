@@ -63,8 +63,10 @@ local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking th
 NPTframe.lastSwatch = nil
 
 local function resetFrame(plate)
-	if plate.UnitFrame then
-		plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
+	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) then
+		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+			plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
+		end
 		plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a)
 	end
 	if NPT.threat[plate.namePlateUnitToken] ~= nil then
@@ -118,16 +120,18 @@ local function updatePlateColor(plate, ...)
 					plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
 			--	end
 			else
-				if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or unit and UnitIsTapDenied(unit) then
-					plate.UnitFrame.healthBar.border:SetAlpha(0)
-				else
-					plate.UnitFrame.healthBar.border:SetAlpha(1)
+				if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+					if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or unit and UnitIsTapDenied(unit) then
+						plate.UnitFrame.healthBar.border:SetAlpha(0)
+					else
+						plate.UnitFrame.healthBar.border:SetAlpha(1)
+					end
 				end
 				plate.UnitFrame.healthBar:SetStatusBarColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
 			end
 		end
---	else
---		resetFrame(plate)
+	else
+		resetFrame(plate)
 	end
 end
 
@@ -135,17 +139,20 @@ local function getGroupRoles()
 	local collectedTanks = {}
 	local collectedOther = {}
 	local collectedHeals = {}
-	local collectedPlayer, unitPrefix, unit, i, unitRole
+	local collectedPlayer, unitPrefix, unit, i, unitRole = 0
 	local isInRaid = IsInRaid()
 
--- mikfhan: WoW Classic has no unit spec but the talent panel default group role up top
-	collectedPlayer = UnitGroupRolesAssigned("player")
-	if collectedPlayer == "NONE" then
-		if GetNumGroupMembers() > 0 and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+	if GetNumGroupMembers() > 0 then
+		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 			collectedPlayer = GetSpecializationRole(GetSpecialization())
-		else
-			collectedPlayer = "DAMAGER"
 		end
+-- mikfhan: WoW Classic has no unit spec but talent panel has a group role up top
+		if collectedPlayer ~= "TANK" then
+			collectedPlayer = UnitGroupRolesAssigned("player")
+		end
+	end
+	if collectedPlayer ~= "TANK" and collectedPlayer ~= "HEALER" then
+		collectedPlayer = "DAMAGER"
 	end
 	if UnitExists("pet") then
 		table.insert(collectedTanks, "pet")
@@ -464,9 +471,10 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 	end
 	if not status or not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and status < 0 then
 		resetFrame(plate) -- only recolor when situation was changed with gradient toward sibling color
--- mikfhan: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the line below:
---	elseif not NPT.threat[plate.namePlateUnitToken] or NPT.threat[plate.namePlateUnitToken].lastStatus ~= status or NPT.threat[plate.namePlateUnitToken].lastRatio ~= ratio then
-	else
+-- mikfhan: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the two check lines below:
+--	elseif not NPT.threat[plate.namePlateUnitToken] or NPT.threat[plate.namePlateUnitToken].lastStatus ~= status
+--		or NPT.threat[plate.namePlateUnitToken].lastRatio ~= ratio then
+	elseif NPTacct.addonsEnabled and unit and UnitCanAttack("player", unit) then
 		local color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
 		if UnitIsPlayer(unit) then
 			color = NPTacct.pvPlayerColor
@@ -607,7 +615,7 @@ end
 NPT:RegisterEvent("ADDON_LOADED")
 NPT:RegisterEvent("PLAYER_ENTERING_WORLD")
 NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED")
-NPT:RegisterEvent("RAID_ROSTER_UPDATE")
+NPT:RegisterEvent("GROUP_ROSTER_UPDATE")
 NPT:RegisterEvent("PET_DISMISS_START")
 NPT:RegisterEvent("UNIT_PET")
 if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
@@ -631,7 +639,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
 		NPTframe:Initialize()
 	elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_ROLES_ASSIGNED" or
-		event == "RAID_ROSTER_UPDATE" or event == "PET_DISMISS_START" or event == "UNIT_PET" or
+		event == "GROUP_ROSTER_UPDATE" or event == "PET_DISMISS_START" or event == "UNIT_PET" or
 		event == "PLAYER_SPECIALIZATION_CHANGED" then
 		local key, plate
 		for key, plate in pairs(C_NamePlate.GetNamePlates()) do
