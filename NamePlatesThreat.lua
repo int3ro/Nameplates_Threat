@@ -155,7 +155,11 @@ local function getGroupRoles()
 		collectedPlayer = "DAMAGER"
 	end
 	if UnitExists("pet") then
-		table.insert(collectedTanks, "pet")
+		if NPTacct.showPetThreat or collectedPlayer == "TANK" then
+			table.insert(collectedTanks, "pet")
+		else
+			table.insert(collectedOther, "pet")
+		end
 	end
 	if isInRaid then
 		unitPrefix = "raid"
@@ -584,7 +588,7 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 	return plate, status, tank, offtank, player, nontank, offheal
 end
 local function callback()
-	if NPTacct.addonsEnabled then
+	if NPTacct.addonsEnabled and (NPTacct.enableOutside or IsInInstance()) then
 		NPT.thisUpdate = false
 		local nameplates, key, plate = {}
 		if InCombatLockdown() then
