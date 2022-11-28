@@ -139,44 +139,25 @@ local function getGroupRoles()
 	local collectedTanks = {}
 	local collectedOther = {}
 	local collectedHeals = {}
-	local collectedPlayer, unitPrefix, unit, i, unitRole = 0
-	local isInRaid = IsInRaid()
+	local collectedPlayer, unitPrefix, unit, i, unitRole, raidRank = "NONE"
 
-	if GetNumGroupMembers() > 0 then
-		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-			collectedPlayer = GetSpecializationRole(GetSpecialization())
-		end
--- mikfhan: WoW Classic has no unit spec but talent panel has a group role up top
-		if collectedPlayer ~= "TANK" then
-			collectedPlayer = UnitGroupRolesAssigned("player")
-		end
-	end
-	if collectedPlayer ~= "TANK" and collectedPlayer ~= "HEALER" then
-		collectedPlayer = "DAMAGER"
-	end
-	if UnitExists("pet") then
-		if NPTacct.showPetThreat or collectedPlayer == "TANK" then
-			table.insert(collectedTanks, "pet")
-		else
-			table.insert(collectedOther, "pet")
-		end
-	end
-	if isInRaid then
+	if IsInRaid() then
 		unitPrefix = "raid"
 	else
 		unitPrefix = "party"
 	end
-
 	for i = 1, GetNumGroupMembers() do
 		unit = unitPrefix .. i
-		if not UnitIsUnit(unit, "player") then
-			unitRole = UnitGroupRolesAssigned(unit)
-			if isInRaid and unitRole ~= "TANK" then
-				_, _, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
-				if unitRole == "MAINTANK" then
-					unitRole = "TANK"
-				end
+		unitRole = UnitGroupRolesAssigned(unit)
+		if unitPrefix == "raid" and unitRole ~= "HEALER" then
+			_, raidRank, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
+			if unitRole == "MAINTANK" or unitRole == "MAINASSIST" or raidRank > 0 then
+				unitRole = "TANK"
 			end
+		end
+		if UnitIsUnit(unit, "player") then
+			collectedPlayer = unitRole
+		else
 			if unitRole == "TANK" then
 				table.insert(collectedTanks, unit)
 			elseif unitRole == "HEALER" then
@@ -192,6 +173,30 @@ local function getGroupRoles()
 					table.insert(collectedOther, unit)
 				end
 			end
+		end
+	end
+-- mikfhan: Outside raid groups the player is not counted amongst the party members
+	if GetNumGroupMembers() > 0 then
+		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+-- mikfhan: Retail will use player spec regardless of the group role chosen earlier
+			collectedPlayer = GetSpecializationRole(GetSpecialization())
+		elseif unitPrefix == "party" then
+-- mikfhan: Wrath Classic has no unit spec but talent panel has a party role up top
+			collectedPlayer = UnitGroupRolesAssigned("player")
+			if UnitIsGroupLeader("player") and collectedPlayer ~= "HEALER" then
+-- mikfhan: Classic Era using party leader since roles did not even exist back then
+				collectedPlayer = "TANK"
+			end
+		end
+	end
+	if collectedPlayer ~= "TANK" and collectedPlayer ~= "HEALER" then
+		collectedPlayer = "DAMAGER"
+	end
+	if UnitExists("pet") then
+		if NPTacct.showPetThreat or collectedPlayer == "TANK" then
+			table.insert(collectedTanks, "pet")
+		else
+			table.insert(collectedOther, "pet")
 		end
 	end
 	return collectedTanks, collectedPlayer, collectedOther, collectedHeals
