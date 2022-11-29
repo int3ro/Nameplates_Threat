@@ -146,18 +146,27 @@ local function getGroupRoles()
 	else
 		unitPrefix = "party"
 	end
-	for i = 1, GetNumGroupMembers() do
+	for i = 1, MAX_RAID_MEMBERS do
 		unit = unitPrefix .. i
-		unitRole = UnitGroupRolesAssigned(unit)
-		if unitPrefix == "raid" and unitRole ~= "HEALER" then
-			_, raidRank, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
-			if unitRole == "MAINTANK" or unitRole == "MAINASSIST" or raidRank > 0 then
-				unitRole = "TANK"
+		unitRole = "NONE"
+		if unitPrefix == "party" and i >= GetNumGroupMembers() then
+			break
+		elseif UnitExists(unit) then
+			unitRole = UnitGroupRolesAssigned(unit)
+			if unitRole ~= "HEALER" then
+				if unitPrefix == "raid" then
+					_, raidRank, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
+				elseif UnitIsGroupLeader(unit) then
+					raidRank = 3
+				end
+				if unitRole == "MAINTANK" or unitRole == "MAINASSIST" or raidRank > 0 then
+					unitRole = "TANK"
+				end
 			end
 		end
 		if UnitIsUnit(unit, "player") then
 			collectedPlayer = unitRole
-		else
+		elseif unitRole ~= "NONE" then
 			if unitRole == "TANK" then
 				table.insert(collectedTanks, unit)
 			elseif unitRole == "HEALER" then
