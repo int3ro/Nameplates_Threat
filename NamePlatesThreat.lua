@@ -153,33 +153,35 @@ local function getGroupRoles()
 			break
 		elseif UnitExists(unit) then
 			unitRole = UnitGroupRolesAssigned(unit)
-			if unitRole ~= "HEALER" then
-				if unitPrefix == "raid" then
-					_, raidRank, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
-				elseif UnitIsGroupLeader(unit) then
+			if unitRole ~= "TANK" and unitRole ~= "HEALER" then
+				if UnitIsGroupLeader(unit) then
 					raidRank = 3
+				elseif unitPrefix == "raid" then
+					_, raidRank, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
+				else
+					raidRank = 0
 				end
 				if unitRole == "MAINTANK" or unitRole == "MAINASSIST" or raidRank > 0 then
 					unitRole = "TANK"
 				end
 			end
-		end
-		if UnitIsUnit(unit, "player") then
-			collectedPlayer = unitRole
-		elseif unitRole ~= "NONE" then
-			if unitRole == "TANK" then
-				table.insert(collectedTanks, unit)
-			elseif unitRole == "HEALER" then
-				table.insert(collectedHeals, unit)
+			if UnitIsUnit(unit, "player") then
+				collectedPlayer = unitRole
 			else
-				table.insert(collectedOther, unit)
-			end
-			unit = unitPrefix .. "pet" .. i
-			if UnitExists(unit) then
-				if NPTacct.showPetThreat or unitRole == "TANK" then
+				if unitRole == "TANK" then
 					table.insert(collectedTanks, unit)
+				elseif unitRole == "HEALER" then
+					table.insert(collectedHeals, unit)
 				else
 					table.insert(collectedOther, unit)
+				end
+				unit = unitPrefix .. "pet" .. i
+				if UnitExists(unit) then
+					if NPTacct.showPetThreat or unitRole == "TANK" then
+						table.insert(collectedTanks, unit)
+					else
+						table.insert(collectedOther, unit)
+					end
 				end
 			end
 		end
