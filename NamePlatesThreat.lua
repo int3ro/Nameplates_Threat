@@ -624,7 +624,38 @@ local function callback()
 		NPT.thisUpdate = 0
 	end
 end
+-- mikfhan TODO: pseudocode for Classic Era assigning temporary healers via combatlog
+--[[
+initial array of healer potentials with their guid as key and timestamp as value
+(note this overrides healer group role to damage if not seen healing for x seconds)
+cleared before group/roster is updated, then register new event when someone heals:
 
+on event COMBAT_LOG_HEAL
+if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC
+ & GetNumGroupMembers() > 0
+ & sourceFlags == 0x0517 (type/control:player,reaction:friendly,affiliation:groupmember)
+	potentials[guid] = event timestamp
+	recent = event timestamp - x seconds
+	playerid = guid(player)
+	iterate i potentials
+		guid = guid(i)
+		if timestamp(i) >= recent
+			if guid == playerid
+				if playerrole == "DAMAGER" then playerrole = "HEALER"
+			else iterate j others
+				if guid(j) == guid
+					healers.insert(j)
+					others.remove(j)
+					break
+		else
+			if guid == playerid
+				if playerrole == "HEALER" then playerrole = "DAMAGER"
+			else iterate j healers
+				if guid(j) == guid
+					others.insert(j)
+					healers.remove(j)
+					break
+--]]
 --NPT:RegisterEvent("UNIT_COMBAT")
 --NPT:RegisterEvent("UNIT_ATTACK")
 --NPT:RegisterEvent("UNIT_DEFENSE")
