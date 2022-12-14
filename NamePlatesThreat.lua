@@ -57,6 +57,7 @@ NPT.thisUpdate = 0
 NPT.offTanks = {}
 NPT.nonTanks = {}
 NPT.offHeals = {}
+NPT.nonHeals = {}
 NPT.threat = {}
 
 local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking the addon
@@ -624,38 +625,7 @@ local function callback()
 		NPT.thisUpdate = 0
 	end
 end
--- mikfhan TODO: pseudocode for Classic Era assigning temporary healers via combatlog
---[[
-initial array of healer potentials with their guid as key and timestamp as value
-(note this overrides healer group role to damage if not seen healing for x seconds)
-cleared before group/roster is updated, then register new event when someone heals:
 
-on event COMBAT_LOG_HEAL
-if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC
- & GetNumGroupMembers() > 0
- & sourceFlags == 0x0517 (type/control:player,reaction:friendly,affiliation:groupmember)
-	potentials[guid] = event timestamp
-	recent = event timestamp - x seconds
-	playerid = guid(player)
-	iterate i potentials
-		guid = guid(i)
-		if timestamp(i) >= recent
-			if guid == playerid
-				if playerrole == "DAMAGER" then playerrole = "HEALER"
-			else iterate j others
-				if guid(j) == guid
-					healers.insert(j)
-					others.remove(j)
-					break
-		else
-			if guid == playerid
-				if playerrole == "HEALER" then playerrole = "DAMAGER"
-			else iterate j healers
-				if guid(j) == guid
-					others.insert(j)
-					healers.remove(j)
-					break
---]]
 --NPT:RegisterEvent("UNIT_COMBAT")
 --NPT:RegisterEvent("UNIT_ATTACK")
 --NPT:RegisterEvent("UNIT_DEFENSE")
@@ -674,6 +644,8 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 	NPT:RegisterEvent("PLAYER_SOFT_INTERACT_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_FRIEND_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_ENEMY_CHANGED")
+elseif WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+	NPT:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 end
 NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -697,6 +669,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			resetFrame(plate)
 		end
 		NPT.threat = {}
+		NPT.nonHeals = {}
 		NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
 		C_Timer.NewTimer(0.1, callback)
 	elseif event == "PLAYER_SOFT_INTERACT_CHANGED" or event == "PLAYER_SOFT_FRIEND_CHANGED" or
@@ -714,6 +687,59 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		local plate = C_NamePlate.GetNamePlateForUnit(arg1)
 		if plate and plate.UnitFrame then
 			resetFrame(plate)
+		end
+	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" and GetNumGroupMembers() > 0 then
+		local timestamp, subevent, _, sourceGUID, _, sourceFlags = CombatLogGetCurrentEventInfo()
+		if subevent == "SPELL_HEAL" or subevent == "SPELL_PERIODIC_HEAL" then
+			local COMBATLOG_FILTER_GROUPHEAL = bit.bor(
+				COMBATLOG_OBJECT_AFFILIATION_MINE
+			,	COMBATLOG_OBJECT_AFFILIATION_PARTY
+			,	COMBATLOG_OBJECT_AFFILIATION_RAID
+			,	COMBATLOG_OBJECT_REACTION_FRIENDLY
+			,	COMBATLOG_OBJECT_CONTROL_PLAYER
+			,	COMBATLOG_OBJECT_TYPE_PLAYER
+			)
+			--print(timestamp .. " " .. sourceGUID .. " " .. format("0x%X", sourceFlags))
+			if CombatLog_Object_IsA(sourceFlags, COMBATLOG_FILTER_GROUPHEAL) then
+				local recent = timestamp - 60
+				local player = UnitGUID("player")
+				NPT.nonHeals[sourceGUID] = timestamp
+				for guid, stamp in pairs(NPT.nonHeals) do
+					if stamp >= recent then
+						if guid == player then
+							if NPT.playerRole == "DAMAGER" then
+								--print("player is now HEALER")
+								NPT.playerRole = "HEALER"
+							end
+						else
+							for _, unit in ipairs(NPT.nonTanks) do
+								if guid == UnitGUID(unit) then
+									--print(unit .. " is now HEALER")
+									table.insert(NPT.offHeals, unit)
+									table.remove(NPT.nonTanks, unit)
+									break
+								end
+							end
+						end
+					else
+						if guid == player then
+							if NPT.playerRole == "HEALER" then
+								--print("player is now DAMAGER")
+								NPT.playerRole = "DAMAGER"
+							end
+						else
+							for _, unit in ipairs(NPT.offHeals) do
+								if guid == UnitGUID(unit) then
+									--print(unit .. " is now DAMAGER")
+									table.insert(NPT.nonTanks, unit)
+									table.remove(NPT.offHeals, unit)
+									break
+								end
+							end
+						end
+					end
+				end
+			end
 		end
 	end
 end)
