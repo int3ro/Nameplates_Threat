@@ -690,51 +690,47 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		end
 	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" and GetNumGroupMembers() > 0 then
 		local timestamp, subevent, _, sourceGUID, _, sourceFlags = CombatLogGetCurrentEventInfo()
-		if subevent == "SPELL_HEAL" or subevent == "SPELL_PERIODIC_HEAL" then
-			local COMBATLOG_FILTER_GROUPHEAL = bit.bor(
-				COMBATLOG_OBJECT_AFFILIATION_MINE
-			,	COMBATLOG_OBJECT_AFFILIATION_PARTY
-			,	COMBATLOG_OBJECT_AFFILIATION_RAID
-			,	COMBATLOG_OBJECT_REACTION_FRIENDLY
-			,	COMBATLOG_OBJECT_CONTROL_PLAYER
-			,	COMBATLOG_OBJECT_TYPE_PLAYER
-			)
+		local COMBATLOG_FILTER_GROUPHEAL = bit.bor(
+			COMBATLOG_OBJECT_AFFILIATION_MINE
+		,	COMBATLOG_OBJECT_AFFILIATION_PARTY
+		,	COMBATLOG_OBJECT_AFFILIATION_RAID
+		,	COMBATLOG_OBJECT_REACTION_FRIENDLY
+		,	COMBATLOG_OBJECT_CONTROL_PLAYER
+		,	COMBATLOG_OBJECT_TYPE_PLAYER
+		)
+		if CombatLog_Object_IsA(sourceFlags, COMBATLOG_FILTER_GROUPHEAL) then
 			--print(timestamp .. " " .. sourceGUID .. " " .. format("0x%X", sourceFlags))
-			if CombatLog_Object_IsA(sourceFlags, COMBATLOG_FILTER_GROUPHEAL) then
-				local recent = timestamp - 60
-				local player = UnitGUID("player")
+			if subevent == "SPELL_HEAL" or subevent == "SPELL_PERIODIC_HEAL" then
 				NPT.nonHeals[sourceGUID] = timestamp
-				for guid, stamp in pairs(NPT.nonHeals) do
-					if stamp >= recent then
-						if guid == player then
-							if NPT.playerRole == "DAMAGER" then
-								--print("player is now HEALER")
-								NPT.playerRole = "HEALER"
-							end
-						else
-							for _, unit in ipairs(NPT.nonTanks) do
-								if guid == UnitGUID(unit) then
-									--print(unit .. " is now HEALER")
-									table.insert(NPT.offHeals, unit)
-									table.remove(NPT.nonTanks, unit)
-									break
-								end
-							end
+				if sourceGUID == UnitGUID("player") then
+					if NPT.playerRole == "DAMAGER" then
+						--print("player is now HEALER")
+						NPT.playerRole = "HEALER"
+					end
+				else
+					for _, unit in ipairs(NPT.nonTanks) do
+						if sourceGUID == UnitGUID(unit) then
+							--print(unit .. " is now HEALER")
+							table.insert(NPT.offHeals, unit)
+							table.remove(NPT.nonTanks, unit)
+							break
+						end
+					end
+				end
+			elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" then
+				if NPT.nonHeals[sourceGUID] and NPT.nonHeals[sourceGUID] < timestamp - 60 then
+					if sourceGUID == UnitGUID("player") then
+						if NPT.playerRole == "HEALER" then
+							--print("player is now DAMAGER")
+							NPT.playerRole = "DAMAGER"
 						end
 					else
-						if guid == player then
-							if NPT.playerRole == "HEALER" then
-								--print("player is now DAMAGER")
-								NPT.playerRole = "DAMAGER"
-							end
-						else
-							for _, unit in ipairs(NPT.offHeals) do
-								if guid == UnitGUID(unit) then
-									--print(unit .. " is now DAMAGER")
-									table.insert(NPT.nonTanks, unit)
-									table.remove(NPT.offHeals, unit)
-									break
-								end
+						for _, unit in ipairs(NPT.offHeals) do
+							if sourceGUID == UnitGUID(unit) then
+								--print(unit .. " is now DAMAGER")
+								table.insert(NPT.nonTanks, unit)
+								table.remove(NPT.offHeals, unit)
+								break
 							end
 						end
 					end
