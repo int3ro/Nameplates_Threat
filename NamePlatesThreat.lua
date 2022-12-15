@@ -719,6 +719,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 				end
 			elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" then
 				if NPT.nonHeals[sourceGUID] and NPT.nonHeals[sourceGUID] < timestamp - 60 then
+					NPT.nonHeals[sourceGUID] = nil
 					if sourceGUID == UnitGUID("player") then
 						if NPT.playerRole == "HEALER" then
 							--print("player is now DAMAGER")
