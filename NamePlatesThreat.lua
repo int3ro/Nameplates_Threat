@@ -66,7 +66,11 @@ NPTframe.lastSwatch = nil
 local function resetFrame(plate)
 	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) then
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-			plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
+			if UnitIsUnit(plate.UnitFrame.unit, "target") then
+				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1, 1)
+			else
+				plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
+			end
 		end
 		plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a)
 	end
