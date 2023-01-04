@@ -52,4 +52,5 @@ Note also how healers have a different color from damage role; healers are very 
 Example if you are tank with high threat (green by default) then as threat is dropping toward only 100% it will fade toward the low color (gray).
 World of Warcraft generally treats anyone with 100% threat or more as "having aggro" for that enemy, and only taunt skills can override this.
 It may be crucial information as a tank to know if you are losing threat to one of the other players in the group, so they should cool off a bit.
-This option is advanced because all the color fading makes it harder to see exactly who has aggro get closer to 100% low threat target switch.
+This option is advanced because all the color fading makes it harder to see exactly who has aggro when close to the 100% low threat target switch.
+Knowing this for hard-hitting bosses may still be preferred by some tanks. 
