@@ -1,8 +1,8 @@
 # Blizzard Nameplates - Threat  
 Extremely lightweight addon which colors the default blizzard nameplates according to threat.  
+See general usage in **bold** below. Settings are saved in your WoW \_retail\_ (or similar) subfolder:  
+WTF\Account\\\<userid\>\SavedVariables\NamePlatesThreat.lua  
 You can tweak settings/colors below from Escape menu > Interface/Options > AddOns > NamePlatesThreat  
-Settings are saved in your World of Warcraft \_retail\_ (or similar) subfolder:  
-WTF\Account\\<userid>\SavedVariables\NamePlatesThreat.lua  
 
 "Color Non-Friendly Nameplates" addon option you can quickly disable if you want Blizzard colors always.  
 "Color Nameplate Border Only" (retail only) ensures healthbar inside still uses original Blizzard colors.  
@@ -39,7 +39,7 @@ GREEN: Tanks have High Threat (fire at will, tanks are on it)
 **Everyone should attack red, then tanks attack orange before yellow, others attack green before gray.**  
 
 "Color Nameplates by Threat" you can disable if you only wish to color enemies by their target instead of threat, it still uses the colors below.
-The role colors just below lets you customize colors when you have the tank role, you disable the checkbox above again after tweaking the colors.
+The role colors just below lets you customize colors when you have the tank role, you can disable checkbox above again after tweaking the colors.
 Notice there is both a color for "you" and "tanks" even when you have a tank role, this is so you know if YOU have aggro or an offtank buddy does.
 "Unique Colors In-Between" lets you pick custom colors when someone is using taunt skills, if disabled addon just reuses the colors from above.
 
