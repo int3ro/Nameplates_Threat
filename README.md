@@ -46,11 +46,11 @@ Notice there is both a color for "you" and "tanks" even when you have a tank rol
 "Unique Colors as Non-Tank Role" lets you pick custom colors if you are a damager/healer role, otherwise addon reuses the color to the left of it.
 Notice there is a color for "you" but also healers and damage, this is so you know if YOU have aggro or if another damage/healer buddy has aggro.
 Note also how some role colors mention "you have the low threat" or "tanks have low threat" etc, this is when taunt skills are used to keep aggro.
-Note also how healers have a different color from damage role; healers are very important so ALL players in group should help tanks defend them.
+Note also how healers have a different color from damage; healers are very important so ALL players in group should help tanks defend them.
 
 "Color Gradient Updates Per Second" is an advanced feature; x times per second it fades the color between high and low as threat percent changes.
 Example if you are tank with high threat (green by default) then as threat is dropping toward only 100% it will fade toward the low color (gray).
 World of Warcraft generally treats anyone with 100% threat or more as "having aggro" for that enemy, and only taunt skills can override this.
 It may be crucial information as a tank to know if you are losing threat to one of the other players in the group, so they should cool off a bit.
 This option is advanced because all the color fading makes it harder to see exactly who has aggro when close to the 100% low threat target switch.
-Knowing this for hard-hitting bosses may still be preferred by some tanks. 
+Having this information for hard-hitting bosses may still be preferred by some tanks. 
