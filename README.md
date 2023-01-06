@@ -4,6 +4,8 @@ See general usage in **bold** below. Settings are saved in your WoW \_retail\_ (
 WTF\Account\\\<userid\>\SavedVariables\NamePlatesThreat.lua  
 You can tweak settings/colors below from Escape menu > Interface/Options > AddOns > NamePlatesThreat  
 
+**Everyone should attack red, then tanks attack orange before yellow, others attack green before gray.**  
+
 "Color Non-Friendly Nameplates" addon option you can quickly disable if you want Blizzard colors always.  
 "Color Nameplate Border Only" (retail only) ensures healthbar inside still uses original Blizzard colors.  
 
@@ -18,9 +20,9 @@ Out of combat topmost three colors below indicate if enemy is a player, or hosti
 "Color Player Characters" for PvP enemies depending on role they are targeting (never based on NPC threat).  
 
 **Colors Out of Combat (2.7-release and newer):**  
-PINK: Player is Out of Combat (only if PvP colors enabled and no target)  
 VIOLET: Hostile Out of Combat (turns blue if fighting totems/NPCs/others)  
 BLUE: Neutral Out of Combat (or hostiles fighting totems/NPCs/others)  
+PINK: Player is Out of Combat (only if PvP colors enabled and no target)  
 
 **Playing as Tank role (2.7-release and newer):**  
 RED: Healers have High Threat (emergency! get on it asap)  
@@ -36,8 +38,6 @@ YELLOW: You have the Low Threat (hold attacks, wait for tank)
 GRAY: Damage has High Threat (okay to attack, but not much)  
 GREEN: Tanks have High Threat (fire at will, tanks are on it)  
 
-**Everyone should attack red, then tanks attack orange before yellow, others attack green before gray.**  
-
 "Color Nameplates by Threat" you can disable if you only wish to color enemies by their target instead of threat, it still uses the colors below.
 The role colors just below lets you customize colors when you have the tank role, you can disable checkbox above again after tweaking the colors.
 Notice there is both a color for "you" and "tanks" even when you have a tank role, this is so you know if YOU have aggro or an offtank buddy does.
@@ -52,5 +52,5 @@ Note also how healers have a different color from damage; healers are very impor
 Example if you are tank with high threat (green by default) then as threat is dropping toward only 100% it will fade toward the low color (gray).
 World of Warcraft generally treats anyone with 100% threat or more as "having aggro" for that enemy, and only taunt skills can override this.
 It may be crucial information as a tank to know if you are losing threat to one of the other players in the group, so they should cool off a bit.
-This option is advanced because all the color fading makes it harder to see exactly who has aggro when close to the 100% low threat target switch.
+This option is advanced because color fading makes it harder to see exactly who has aggro when close to the 100% low threat target switchover.
 Having this information for hard-hitting bosses may still be preferred by some tanks. 
