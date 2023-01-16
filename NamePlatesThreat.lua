@@ -713,11 +713,12 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 							NPT.playerRole = "HEALER"
 						end
 					else
-						for _, unit in ipairs(NPT.nonTanks) do
+						local key, unit
+						for key, unit in pairs(NPT.nonTanks) do
 							if sourceGUID == UnitGUID(unit) then
 								--print(unit .. " is now HEALER")
 								table.insert(NPT.offHeals, unit)
-								table.remove(NPT.nonTanks, unit)
+								table.remove(NPT.nonTanks, key)
 								break
 							end
 						end
@@ -732,11 +733,12 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 							NPT.playerRole = "DAMAGER"
 						end
 					else
-						for _, unit in ipairs(NPT.offHeals) do
+						local key, unit
+						for key, unit in pairs(NPT.offHeals) do
 							if sourceGUID == UnitGUID(unit) then
 								--print(unit .. " is now DAMAGER")
 								table.insert(NPT.nonTanks, unit)
-								table.remove(NPT.offHeals, unit)
+								table.remove(NPT.offHeals, key)
 								break
 							end
 						end
