@@ -9,7 +9,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
 	newAcct["enablePlayers"] = true  -- also color nameplates for player characters
 	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
-	newAcct["gradientColor"] = true -- update nameplate color gradients (some CPU usage)
+	newAcct["gradientColor"] = false -- update nameplate color gradients (some CPU usage)
 	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
 	newAcct["youTankCombat"] = true  -- unique colors in combat instead of colors above
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
@@ -57,6 +57,7 @@ NPT.thisUpdate = 0
 NPT.offTanks = {}
 NPT.nonTanks = {}
 NPT.offHeals = {}
+NPT.nonHeals = {}
 NPT.threat = {}
 
 local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking the addon
@@ -65,7 +66,11 @@ NPTframe.lastSwatch = nil
 local function resetFrame(plate)
 	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) then
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-			plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
+			if UnitIsUnit(plate.UnitFrame.unit, "target") then
+				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1, 1)
+			else
+				plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
+			end
 		end
 		plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a)
 	end
@@ -139,16 +144,65 @@ local function getGroupRoles()
 	local collectedTanks = {}
 	local collectedOther = {}
 	local collectedHeals = {}
-	local collectedPlayer, unitPrefix, unit, i, unitRole = 0
-	local isInRaid = IsInRaid()
+	local collectedPlayer, unitPrefix, unit, i, unitRole, raidRank = "NONE"
 
+	if IsInRaid() then
+		unitPrefix = "raid"
+	else
+		unitPrefix = "party"
+	end
+	for i = 1, MAX_RAID_MEMBERS do
+		unit = unitPrefix .. i
+		unitRole = "NONE"
+		if unitPrefix == "party" and i >= GetNumGroupMembers() then
+			break
+		elseif UnitExists(unit) then
+			unitRole = UnitGroupRolesAssigned(unit)
+			if unitRole ~= "TANK" and unitRole ~= "HEALER" then
+				if UnitIsGroupLeader(unit) then
+					raidRank = 3
+				elseif unitPrefix == "raid" then
+					_, raidRank, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
+				else
+					raidRank = 0
+				end
+				if unitRole == "MAINTANK" or unitRole == "MAINASSIST" or raidRank > 0 then
+					unitRole = "TANK"
+				end
+			end
+			if UnitIsUnit(unit, "player") then
+				collectedPlayer = unitRole
+			else
+				if unitRole == "TANK" then
+					table.insert(collectedTanks, unit)
+				elseif unitRole == "HEALER" then
+					table.insert(collectedHeals, unit)
+				else
+					table.insert(collectedOther, unit)
+				end
+				unit = unitPrefix .. "pet" .. i
+				if UnitExists(unit) then
+					if NPTacct.showPetThreat or unitRole == "TANK" then
+						table.insert(collectedTanks, unit)
+					else
+						table.insert(collectedOther, unit)
+					end
+				end
+			end
+		end
+	end
+-- mikfhan: Outside raid groups the player is not counted amongst the party members
 	if GetNumGroupMembers() > 0 then
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+-- mikfhan: Retail will use player spec regardless of the group role chosen earlier
 			collectedPlayer = GetSpecializationRole(GetSpecialization())
-		end
--- mikfhan: WoW Classic has no unit spec but talent panel has a group role up top
-		if collectedPlayer ~= "TANK" then
+		elseif unitPrefix == "party" then
+-- mikfhan: Wrath Classic has no unit spec but talent panel has a party role up top
 			collectedPlayer = UnitGroupRolesAssigned("player")
+			if UnitIsGroupLeader("player") and collectedPlayer ~= "HEALER" then
+-- mikfhan: Classic Era using party leader since roles did not even exist back then
+				collectedPlayer = "TANK"
+			end
 		end
 	end
 	if collectedPlayer ~= "TANK" and collectedPlayer ~= "HEALER" then
@@ -159,39 +213,6 @@ local function getGroupRoles()
 			table.insert(collectedTanks, "pet")
 		else
 			table.insert(collectedOther, "pet")
-		end
-	end
-	if isInRaid then
-		unitPrefix = "raid"
-	else
-		unitPrefix = "party"
-	end
-
-	for i = 1, GetNumGroupMembers() do
-		unit = unitPrefix .. i
-		if not UnitIsUnit(unit, "player") then
-			unitRole = UnitGroupRolesAssigned(unit)
-			if isInRaid and unitRole ~= "TANK" then
-				_, _, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
-				if unitRole == "MAINTANK" then
-					unitRole = "TANK"
-				end
-			end
-			if unitRole == "TANK" then
-				table.insert(collectedTanks, unit)
-			elseif unitRole == "HEALER" then
-				table.insert(collectedHeals, unit)
-			else
-				table.insert(collectedOther, unit)
-			end
-			unit = unitPrefix .. "pet" .. i
-			if UnitExists(unit) then
-				if NPTacct.showPetThreat or unitRole == "TANK" then
-					table.insert(collectedTanks, unit)
-				else
-					table.insert(collectedOther, unit)
-				end
-			end
 		end
 	end
 	return collectedTanks, collectedPlayer, collectedOther, collectedHeals
@@ -627,6 +648,8 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 	NPT:RegisterEvent("PLAYER_SOFT_INTERACT_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_FRIEND_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_ENEMY_CHANGED")
+elseif WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+	NPT:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 end
 NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -650,6 +673,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			resetFrame(plate)
 		end
 		NPT.threat = {}
+		NPT.nonHeals = {}
 		NPT.offTanks, NPT.playerRole, NPT.nonTanks, NPT.offHeals = getGroupRoles()
 		C_Timer.NewTimer(0.1, callback)
 	elseif event == "PLAYER_SOFT_INTERACT_CHANGED" or event == "PLAYER_SOFT_FRIEND_CHANGED" or
@@ -667,6 +691,60 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		local plate = C_NamePlate.GetNamePlateForUnit(arg1)
 		if plate and plate.UnitFrame then
 			resetFrame(plate)
+		end
+	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" and GetNumGroupMembers() > 0 then
+		local timestamp, subevent, _, sourceGUID, _, sourceFlags, _, destGUID = CombatLogGetCurrentEventInfo()
+		local COMBATLOG_FILTER_GROUPHEAL = bit.bor(
+			COMBATLOG_OBJECT_AFFILIATION_MINE
+		,	COMBATLOG_OBJECT_AFFILIATION_PARTY
+		,	COMBATLOG_OBJECT_AFFILIATION_RAID
+		,	COMBATLOG_OBJECT_REACTION_FRIENDLY
+		,	COMBATLOG_OBJECT_CONTROL_PLAYER
+		,	COMBATLOG_OBJECT_TYPE_PLAYER
+		)
+		if CombatLog_Object_IsA(sourceFlags, COMBATLOG_FILTER_GROUPHEAL) then
+			--print(timestamp .. " " .. sourceGUID .. " " .. format("0x%X", sourceFlags))
+			if subevent == "SPELL_HEAL" or subevent == "SPELL_PERIODIC_HEAL" then
+				if sourceGUID ~= destGUID and string.sub(destGUID, 1, 6) == "Player" then
+					NPT.nonHeals[sourceGUID] = timestamp
+					if sourceGUID == UnitGUID("player") then
+						if NPT.playerRole == "DAMAGER" then
+							--print("player is now HEALER")
+							NPT.playerRole = "HEALER"
+						end
+					else
+						local key, unit
+						for key, unit in pairs(NPT.nonTanks) do
+							if sourceGUID == UnitGUID(unit) then
+								--print(unit .. " is now HEALER")
+								table.insert(NPT.offHeals, unit)
+								table.remove(NPT.nonTanks, key)
+								break
+							end
+						end
+					end
+				end
+			elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" then
+				if NPT.nonHeals[sourceGUID] and NPT.nonHeals[sourceGUID] < timestamp - 60 then
+					NPT.nonHeals[sourceGUID] = nil
+					if sourceGUID == UnitGUID("player") then
+						if NPT.playerRole == "HEALER" then
+							--print("player is now DAMAGER")
+							NPT.playerRole = "DAMAGER"
+						end
+					else
+						local key, unit
+						for key, unit in pairs(NPT.offHeals) do
+							if sourceGUID == UnitGUID(unit) then
+								--print(unit .. " is now DAMAGER")
+								table.insert(NPT.nonTanks, unit)
+								table.remove(NPT.offHeals, key)
+								break
+							end
+						end
+					end
+				end
+			end
 		end
 	end
 end)
