@@ -67,7 +67,7 @@ local function resetFrame(plate)
 	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) then
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 			if UnitIsUnit(plate.UnitFrame.unit, "target") then
-				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1, 1)
+				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1)
 			else
 				plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
 			end
@@ -429,17 +429,18 @@ local function gradient(output, color, fader, ratio)
 end
 
 local function updateThreatColor(plate, status, tank, offtank, player, nontank, offheal)
-	local unit, ratio = IsInInstance()
-	if unit and (ratio == "party" or ratio == "raid" or ratio == "scenario") then
-		ratio = true -- indicates a PvE instance
+	local color, fader, unit, ratio = IsInInstance()
+	if color and (fader == "party" or fader == "raid" or fader == "scenario") then
+		fader = true -- indicates a PvE instance
 	else
-		ratio = false -- PvP or non-instance zone
+		fader = false -- PvP or non-instance zone
 	end
 	unit = plate.UnitFrame.unit
+	ratio = 0
 
 	if NPTacct.addonsEnabled -- only color nameplates you can attack if addon is active
 		and UnitCanAttack("player", unit)
-		and (NPTacct.enableOutside or ratio) -- and outside or players only if enabled
+		and (NPTacct.enableOutside or fader) -- and outside or players only if enabled
 		and (NPTacct.enablePlayers or not UnitIsPlayer(unit)) then
 
 		--[[Custom threat situation nameplate coloring:
@@ -485,28 +486,24 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 			
 -- mikfhan: some cases give 0 > ratio > 1 and some of the cases might not be correct de/nom or color below
 			ratio = math.min(math.max(0, ratio), 1)
-		else
-			ratio = 0
 		end
 		if not unit then
 			unit = plate.UnitFrame.unit
 		end
-	else
-		ratio = 0
 	end
-	if not status or not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and status < 0 then
+	if not status or not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and status < 0 or not (NPTacct.enableOutside or fader) then
 		resetFrame(plate) -- only recolor when situation was changed with gradient toward sibling color
 -- mikfhan: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the two check lines below:
 --	elseif not NPT.threat[plate.namePlateUnitToken] or NPT.threat[plate.namePlateUnitToken].lastStatus ~= status
 --		or NPT.threat[plate.namePlateUnitToken].lastRatio ~= ratio then
 	elseif NPTacct.addonsEnabled and unit and UnitCanAttack("player", unit) then
-		local color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
+		color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
 		if UnitIsPlayer(unit) then
 			color = NPTacct.pvPlayerColor
 		elseif UnitReaction(unit, "player") > 3 or UnitExists(unit .. "target") then
 			color = NPTacct.neutralsColor
 		end
-		local fader = color
+		fader = color
 
 		if status > -1 then -- color depending on threat or target situation odd/even
 			if NPT.playerRole == "TANK" then
@@ -609,7 +606,7 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 	return plate, status, tank, offtank, player, nontank, offheal
 end
 local function callback()
-	if NPTacct.addonsEnabled and (NPTacct.enableOutside or IsInInstance()) then
+	if NPTacct.addonsEnabled then
 		NPT.thisUpdate = false
 		local nameplates, key, plate = {}
 		if InCombatLockdown() then
