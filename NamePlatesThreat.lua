@@ -231,7 +231,7 @@ local function threatSituation(monster)
 	-- store if an offtank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offTanks) do
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPTacct.youTankCombat and status then
+		if status then
 			if isTanking then
 				threatStatus = status + 2
 				tankValue = threatValue
@@ -245,7 +245,7 @@ local function threatSituation(monster)
 	end
 	-- store if the player is tanking, or store their threat value if higher than others
 	isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
-	if NPTacct.youTankCombat and status then
+	if status then
 		if isTanking then
 			threatStatus = status
 			tankValue = threatValue
@@ -259,7 +259,7 @@ local function threatSituation(monster)
 	-- store if a non-tank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.nonTanks) do
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPTacct.youTankCombat and status then
+		if status then
 			if isTanking then
 				threatStatus = 3 - status
 				tankValue = threatValue
@@ -274,7 +274,7 @@ local function threatSituation(monster)
 	-- store if an offheal is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offHeals) do
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPTacct.youTankCombat and status then
+		if status then
 			if isTanking then
 				threatStatus = status + 4
 				tankValue = threatValue
@@ -295,7 +295,7 @@ local function threatSituation(monster)
 		unit = monster .. "target"
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
 		if NPT.playerRole == "TANK" then
-			if NPTacct.youTankCombat and status then
+			if status then
 				if isTanking then
 					threatStatus = status + 2
 					tankValue = threatValue
@@ -307,7 +307,7 @@ local function threatSituation(monster)
 				targetStatus = 5
 			end
 		else
-			if NPTacct.youTankCombat and status then
+			if status then
 				if isTanking then
 					threatStatus = 3 - status
 					tankValue = threatValue
@@ -403,7 +403,8 @@ end
 -- mikfhan: convert to hue/saturation/value before fading then back again
 -- https://homepages.abdn.ac.uk/npmuseum/article/Maxwell/Legacy/Maxtriangle.gif
 -- https://axonflux.com/handy-rgb-to-hsl-and-rgb-to-hsv-color-model-c
-local function gradient(output, color, fader, ratio)
+local function gradient(color, fader, ratio)
+	local output = {r=0, g=0, b=0, a=1}
 	output.r = color.r / 255
 	output.g = color.g / 255
 	output.b = color.b / 255
@@ -422,10 +423,9 @@ local function gradient(output, color, fader, ratio)
 			output.v = (output.v + (output.a.v - output.v) * ratio)
 			output.a = output.a.a
 			output = hsv2rgb(output)
---print(GetServerTime() .. " NPT ratio " .. ratio .. " RGB r=" .. output.r .. " g=" .. output.g .. " b=" .. output.b)
 		end -- otherwise convert to HSV and fade then back to RGB
 	end
-	-- no return value since all colors are passed by reference anyway
+	return output
 end
 
 local function updateThreatColor(plate, status, tank, offtank, player, nontank, offheal)
@@ -462,10 +462,10 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 		end
 		-- compare highest group threat with tank for color gradient if enabled
 		if NPTacct.gradientColor and status > -1 then
-			if status == 6 or status == 7 then
+			if NPTacct.youTankCombat and (status == 6 or status == 7) then
 				ratio = math.max(offtank, player, nontank)
 			elseif NPT.playerRole == "TANK" then
-				if status == 0 or status == 1 then
+				if status == 0 or status == 1 or status == 6 or status == 7 then
 					ratio = math.max(offtank, player)
 				else -- damage roles are tanking the monster
 					ratio = math.max(nontank, offheal)
@@ -474,15 +474,15 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 				if status == 2 or status == 3 then
 					ratio = math.max(offtank, nontank)
 				else -- you have monster as damage or healer
-					ratio = math.max(player, offheal)
+					ratio = player
 				end -- damage or tank roles have the monster
 			end
 			-- threat ratio when monster changes target from current (melee 110% or 130% ranged)
 			if status == 1 or status == 2 or status == 4 or status == 6 then
 				ratio = tank / math.max(ratio * 1.1, 1)
-			else -- monster is tanked by someone via threat (others must exceed 110% to change it)
+			else -- monster is tanked by someone via force (they must exceed 110% after to keep it)
 				ratio = ratio / math.max(tank * 1.1, 1)
-			end -- monster is tanked by someone via force (they must exceed 110% after to keep it)
+			end -- monster is tanked by someone via threat (others must exceed 110% to change it)
 			
 -- mikfhan: some cases give 0 > ratio > 1 and some of the cases might not be correct de/nom or color below
 			ratio = math.min(math.max(0, ratio), 1)
@@ -505,7 +505,15 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 		end
 		fader = color
 
-		if status > -1 then -- color depending on threat or target situation odd/even
+		if not NPT.threat[plate.namePlateUnitToken] then
+			NPT.threat[plate.namePlateUnitToken] = {
+				["color"] = {r=0, g=0, b=0, a=1}
+			}
+		end
+		NPT.threat[plate.namePlateUnitToken].lastStatus = status
+		NPT.threat[plate.namePlateUnitToken].lastRatio = ratio
+
+		if status > -1 and NPTacct.youTankCombat then -- color depending on threat or target situation odd/even
 			if NPT.playerRole == "TANK" then
 				if status == 0 then	-- others tanking by threat	orange to yellow
 					color = 0
@@ -592,15 +600,75 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 				color = NPTacct["nonTank" .. color .. "color"]
 				fader = NPTacct["nonTank" .. fader .. "color"]
 			end
+		elseif status > -1 then
+			if NPT.playerRole == "TANK" then
+				if status == 0 or status == 7 then	-- others tanking by threat	red to orange
+					color = 7
+					fader = 0
+				elseif status == 1 or status == 6 then	-- others tanking by force	orange to red
+					color = 0
+					fader = 7
+				elseif status == 2 or status == 4 then	-- you or offtanks by force	green or gray
+					if ratio > 0.5 then
+						color = 4
+						if status == 2 then fader = 3 else fader = 2 end
+						ratio = ratio - 0.5
+					else				-- less than half of threat	orange to yellow
+						color = 0
+						fader = 4
+					end
+					ratio = ratio * 2
+				elseif status == 3 or status == 5 then	-- less than half of threat	orange to yellow
+					if ratio > 0.5 then
+						color = 4
+						fader = 0
+						ratio = ratio - 0.5
+					else				-- you or offtanks by threat	green or gray
+						if status == 3 then color = 3 else color = 2 end
+						fader = 4
+					end
+					ratio = ratio * 2
+				end
+			else
+				if status == 0 or status == 7 or status == 5 then	-- by threat	yellow to orange
+					if ratio > 0.5 then
+						color = 4
+						fader = 0
+						ratio = ratio - 0.5
+					else				-- less than half of threat	green or gray
+						if status == 5 then color = 3 else color = 2 end
+						fader = 4
+					end
+					ratio = ratio * 2
+				elseif status == 1 or status == 6 or status == 4 then	-- by force	green or gray
+					if ratio > 0.5 then
+						color = 4
+						if status == 4 then fader = 3 else fader = 2 end
+						ratio = ratio - 0.5
+					else				-- less than half of threat	orange to yellow
+						color = 0
+						fader = 4
+					end
+					ratio = ratio * 2
+				elseif status == 2 then			-- you're tanking by force	orange to red
+					color = 0
+					fader = 7
+				elseif status == 3 then			-- you're tanking by threat	red to orange
+					color = 7
+					fader = 0
+				end
+			end
+			color = NPTacct["youTank" .. color .. "color"]
+			fader = NPTacct["youTank" .. fader .. "color"]
 		end
-		if not NPT.threat[plate.namePlateUnitToken] then
-			NPT.threat[plate.namePlateUnitToken] = {
-				["color"] = {r=0, g=0, b=0, a=1}
-			}
-		end
-		NPT.threat[plate.namePlateUnitToken].lastStatus = status
-		NPT.threat[plate.namePlateUnitToken].lastRatio = ratio
-		gradient(NPT.threat[plate.namePlateUnitToken].color, color, fader, ratio)
+		NPT.threat[plate.namePlateUnitToken].color = gradient(color, fader, ratio)
+		
+--		if ratio > 0 then
+--			print(GetServerTime() .. " NPT ratio " .. ratio
+--			.. " RGB r= " .. NPT.threat[plate.namePlateUnitToken].color.r
+--			.. " g=" .. NPT.threat[plate.namePlateUnitToken].color.g
+--			.. " b=" .. NPT.threat[plate.namePlateUnitToken].color.b)
+--		end
 		updatePlateColor(plate, false)
 	end
 	return plate, status, tank, offtank, player, nontank, offheal
