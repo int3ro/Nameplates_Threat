@@ -226,67 +226,67 @@ local function threatSituation(monster)
 	local playerValue  =  0
 	local nonTankValue =  0
 	local offHealValue =  0
-	local unit, isTanking, status, threatValue
+	local threatValue, status, unit = 0
 
 -- mikfhan TODO: recheck status & scaledPercentage & isTanking there are maybe fine details
 -- we've missed: https://wowpedia.fandom.com/wiki/API_UnitDetailedThreatSituation 
 
 	-- store if an offtank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offTanks) do
-		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if status then
-			if isTanking then
-				threatStatus = status + 2
-				tankValue = threatValue
-			elseif threatValue > offTankValue then
-				offTankValue = threatValue
-			end
-		end
+		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
 		if UnitIsUnit(unit, monster .. "target") then
+			if not status then
+				status = 2
+				threatValue = 0
+			end
 			targetStatus = 5
+			threatStatus = status + 2
+			tankValue = threatValue
+		elseif threatValue and threatValue > offTankValue then
+			offTankValue = threatValue
 		end
 	end
 	-- store if the player is tanking, or store their threat value if higher than others
-	isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
-	if status then
-		if isTanking then
-			threatStatus = status
-			tankValue = threatValue
-		else
-			playerValue = threatValue
-		end
-	end
+	_, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
 	if UnitIsUnit("player", monster .. "target") then
+		if not status then
+			status = 2
+			threatValue = 0
+		end
 		targetStatus = 3
+		threatStatus = status
+		tankValue = threatValue
+	elseif threatValue then
+		playerValue = threatValue
 	end
 	-- store if a non-tank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.nonTanks) do
-		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if status then
-			if isTanking then
-				threatStatus = 3 - status
-				tankValue = threatValue
-			elseif threatValue > nonTankValue then
-				nonTankValue = threatValue
-			end
-		end
+		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
 		if UnitIsUnit(unit, monster .. "target") then
+			if not status then
+				status = 2
+				threatValue = 0
+			end
 			targetStatus = 0
+			threatStatus = 3 - status
+			tankValue = threatValue
+		elseif threatValue and threatValue > nonTankValue then
+			nonTankValue = threatValue
 		end
 	end
 	-- store if an offheal is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offHeals) do
-		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if status then
-			if isTanking then
-				threatStatus = status + 4
-				tankValue = threatValue
-			elseif threatValue > offHealValue then
-				offHealValue = threatValue
-			end
-		end
+		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
 		if UnitIsUnit(unit, monster .. "target") then
+			if not status then
+				status = 2
+				threatValue = 0
+			end
 			targetStatus = 7
+			threatStatus = status + 4
+			tankValue = threatValue
+		elseif threatValue and threatValue > offHealValue then
+			offHealValue = threatValue
 		end
 	end
 -- mikfhan TODO: pretend any other combat situation means monster is being offtanked by force
@@ -480,9 +480,9 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 			end
 			-- threat ratio when monster switch target (melee 110% or 130% ranged to reclaim)
 			if status == 1 or status == 2 or status == 4 or status == 6 then
-				if ratio > 0 then ratio = tank / ratio else ratio = 1 end
+				if tank < ratio then ratio = tank / ratio else ratio = 1 end
 			else -- monster is tanked by someone via force
-				if tank > 0 then ratio = ratio / tank else ratio = 1 end
+				if ratio < tank then ratio = ratio / tank else ratio = 1 end
 			end -- monster is tanked by someone via threat
 			
 -- mikfhan: some cases give 0 > ratio > 1 and some of the cases might not be correct de/nom or color below
@@ -612,12 +612,12 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 						color = 4
 						if status == 2 then fader = 3 else fader = 2 end
 						ratio = ratio - 0.5
-					else				-- less than half of threat	orange to yellow
+					else				-- less than half caught up	orange to yellow
 						color = 0
 						fader = 4
 					end
 					ratio = ratio * 2
-				elseif status == 3 or status == 5 then	-- less than half of threat	orange to yellow
+				elseif status == 3 or status == 5 then	-- more than half caught up	yellow to orange
 					if ratio > 0.5 then
 						color = 4
 						fader = 0
@@ -629,30 +629,18 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 					ratio = ratio * 2
 				end
 			else
-				if status == 0 or status == 7 or status == 5 then	-- by threat	yellow to orange
+				if status == 0 or status == 7 or status == 5		-- by threat	yellow to orange
+				or status == 1 or status == 6 or status == 4 then	-- by force
 					if ratio > 0.5 then
 						color = 4
 						fader = 0
 						ratio = ratio - 0.5
-					else				-- less than half of threat	green or gray
-						if status == 5 then color = 3 else color = 2 end
+					else				-- less than half caught up	green or gray
+						if status == 5 or status == 4 then color = 3 else color = 2 end
 						fader = 4
 					end
 					ratio = ratio * 2
-				elseif status == 1 or status == 6 or status == 4 then	-- by force	green or gray
-					if ratio > 0.5 then
-						color = 4
-						if status == 4 then fader = 3 else fader = 2 end
-						ratio = ratio - 0.5
-					else				-- less than half of threat	orange to yellow
-						color = 0
-						fader = 4
-					end
-					ratio = ratio * 2
-				elseif status == 2 then			-- you're tanking by force	orange to red
-					color = 0
-					fader = 7
-				elseif status == 3 then			-- you're tanking by threat	red to orange
+				else					-- you tank by force/threat	red to orange
 					color = 7
 					fader = 0
 				end
