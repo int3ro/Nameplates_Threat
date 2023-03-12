@@ -9,7 +9,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
 	newAcct["enablePlayers"] = true  -- also color nameplates for player characters
 	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
-	newAcct["gradientColor"] = false -- update nameplate color gradients (some CPU usage)
+	newAcct["gradientColor"] = true  -- update nameplate color gradients (some CPU usage)
 	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
 	newAcct["youTankCombat"] = false -- unique colors in combat instead of colors above
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
@@ -291,7 +291,11 @@ local function threatSituation(monster)
 	end
 -- mikfhan TODO: pretend any other combat situation means monster is being offtanked by force
 	if targetStatus < 0 and threatStatus < 0 and UnitAffectingCombat(monster) then
-		targetStatus = 4
+		if NPT.playerRole == "TANK" then
+			targetStatus = 4
+		else
+			targetStatus = 1
+		end
 	end
 --[[	-- default to offtank low threat on a nongroup target if none of the above were a match
 	if NPTacct.showPetThreat and targetStatus < 0 and UnitExists(monster .. "target") then

@@ -29,7 +29,7 @@ This gradual information for hard-hitting bosses may still be preferred by some 
 "Color Nameplates by Role" you can disable if you only wish to color enemies red to green, otherwise it will use the advanced role colors below.
 The role colors just below lets you customize colors when you have the tank role, you can disable the checkbox again after tweaking the colors.
 Notice there is both a color for "you" and "tanks" even when you have a tank role, this is so you know if YOU have aggro or an offtank buddy does.
-"Unique Colors In-Between" lets you pick custom colors when someone is using taunt skills, if disabled addon just reuses the colors just above.  
+"Unique Colors In-Between" uses custom colors when enemies switch targets soon, or reuses same color from above.  
 
 **Playing as Tank role (2.7-release and newer):**  
 RED: Healers have High Threat (emergency! get on it asap)  
