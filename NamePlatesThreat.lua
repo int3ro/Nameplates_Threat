@@ -2,16 +2,16 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	local newAcct, key, value = {}
 	newAcct["addonsEnabled"] = true  -- color by threat those nameplates you can attack
 	newAcct["colBorderOnly"] = false -- ignore healthbar and color nameplate border instead
-	newAcct["showPetThreat"] = false -- include pets as offtanks when coloring nameplates
+	newAcct["showPetThreat"] = true  -- include pets as offtanks when coloring nameplates
 	newAcct["enableOutside"] = true  -- also color nameplates outside PvE instances
 	newAcct["enableNoFight"] = true  -- also color nameplates not fighting your group
 	newAcct["hostilesColor"] = {r=163, g= 48, b=201} -- violet hostile not in group fight
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
 	newAcct["enablePlayers"] = true  -- also color nameplates for player characters
 	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
-	newAcct["gradientColor"] = false -- update nameplate color gradients (some CPU usage)
+	newAcct["gradientColor"] = true  -- update nameplate color gradients (some CPU usage)
 	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
-	newAcct["youTankCombat"] = true  -- unique colors in combat instead of colors above
+	newAcct["youTankCombat"] = false -- unique colors in combat instead of colors above
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
 	newAcct["youTank0color"] = {r=255, g=153, b=  0} -- orange others tanking by threat
 	newAcct["youTank4color"] = {r=255, g=255, b=120} -- yellow group tanks tank by force
@@ -67,7 +67,7 @@ local function resetFrame(plate)
 	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) then
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 			if UnitIsUnit(plate.UnitFrame.unit, "target") then
-				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1, 1)
+				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1)
 			else
 				plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
 			end
@@ -205,15 +205,15 @@ local function getGroupRoles()
 			end
 		end
 	end
-	if collectedPlayer ~= "TANK" and collectedPlayer ~= "HEALER" then
-		collectedPlayer = "DAMAGER"
-	end
 	if UnitExists("pet") then
 		if NPTacct.showPetThreat or collectedPlayer == "TANK" then
 			table.insert(collectedTanks, "pet")
 		else
 			table.insert(collectedOther, "pet")
 		end
+	end
+	if collectedPlayer ~= "TANK" and collectedPlayer ~= "HEALER" then
+		collectedPlayer = "DAMAGER"
 	end
 	return collectedTanks, collectedPlayer, collectedOther, collectedHeals
 end
@@ -226,76 +226,83 @@ local function threatSituation(monster)
 	local playerValue  =  0
 	local nonTankValue =  0
 	local offHealValue =  0
-	local unit, isTanking, status, threatValue
+	local threatValue, status, unit = 0
+
+-- mikfhan TODO: recheck status & scaledPercentage & isTanking there are maybe fine details
+-- we've missed: https://wowpedia.fandom.com/wiki/API_UnitDetailedThreatSituation 
 
 	-- store if an offtank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offTanks) do
-		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPTacct.youTankCombat and status then
-			if isTanking then
-				threatStatus = status + 2
-				tankValue = threatValue
-			elseif threatValue > offTankValue then
-				offTankValue = threatValue
-			end
-		end
+		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
 		if UnitIsUnit(unit, monster .. "target") then
+			if not status then
+				status = 3
+				threatValue = 0
+			end
 			targetStatus = 5
+			threatStatus = status + 2
+			tankValue = threatValue
+		elseif threatValue and threatValue > offTankValue then
+			offTankValue = threatValue
 		end
 	end
 	-- store if the player is tanking, or store their threat value if higher than others
-	isTanking, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
-	if NPTacct.youTankCombat and status then
-		if isTanking then
-			threatStatus = status
-			tankValue = threatValue
-		else
-			playerValue = threatValue
-		end
-	end
+	_, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
 	if UnitIsUnit("player", monster .. "target") then
+		if not status then
+			status = 3
+			threatValue = 0
+		end
 		targetStatus = 3
+		threatStatus = status
+		tankValue = threatValue
+	elseif threatValue then
+		playerValue = threatValue
 	end
 	-- store if a non-tank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.nonTanks) do
-		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPTacct.youTankCombat and status then
-			if isTanking then
-				threatStatus = 3 - status
-				tankValue = threatValue
-			elseif threatValue > nonTankValue then
-				nonTankValue = threatValue
-			end
-		end
+		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
 		if UnitIsUnit(unit, monster .. "target") then
+			if not status then
+				status = 3
+				threatValue = 0
+			end
 			targetStatus = 0
+			threatStatus = 3 - status
+			tankValue = threatValue
+		elseif threatValue and threatValue > nonTankValue then
+			nonTankValue = threatValue
 		end
 	end
 	-- store if an offheal is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offHeals) do
-		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPTacct.youTankCombat and status then
-			if isTanking then
-				threatStatus = status + 4
-				tankValue = threatValue
-			elseif threatValue > offHealValue then
-				offHealValue = threatValue
-			end
-		end
+		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
 		if UnitIsUnit(unit, monster .. "target") then
+			if not status then
+				status = 3
+				threatValue = 0
+			end
 			targetStatus = 7
+			threatStatus = status + 4
+			tankValue = threatValue
+		elseif threatValue and threatValue > offHealValue then
+			offHealValue = threatValue
 		end
 	end
 -- mikfhan TODO: pretend any other combat situation means monster is being offtanked by force
 	if targetStatus < 0 and threatStatus < 0 and UnitAffectingCombat(monster) then
-		targetStatus = 4
+		if NPT.playerRole == "TANK" then
+			targetStatus = 4
+		else
+			targetStatus = 1
+		end
 	end
 --[[	-- default to offtank low threat on a nongroup target if none of the above were a match
 	if NPTacct.showPetThreat and targetStatus < 0 and UnitExists(monster .. "target") then
 		unit = monster .. "target"
 		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
 		if NPT.playerRole == "TANK" then
-			if NPTacct.youTankCombat and status then
+			if status then
 				if isTanking then
 					threatStatus = status + 2
 					tankValue = threatValue
@@ -307,7 +314,7 @@ local function threatSituation(monster)
 				targetStatus = 5
 			end
 		else
-			if NPTacct.youTankCombat and status then
+			if status then
 				if isTanking then
 					threatStatus = 3 - status
 					tankValue = threatValue
@@ -403,16 +410,17 @@ end
 -- mikfhan: convert to hue/saturation/value before fading then back again
 -- https://homepages.abdn.ac.uk/npmuseum/article/Maxwell/Legacy/Maxtriangle.gif
 -- https://axonflux.com/handy-rgb-to-hsl-and-rgb-to-hsv-color-model-c
-local function gradient(output, color, fader, ratio)
+local function gradient(color, fader, ratio)
+	local output = {r=0, g=0, b=0, a=1}
 	output.r = color.r / 255
 	output.g = color.g / 255
 	output.b = color.b / 255
-	if NPTacct.gradientColor and ratio > 0 then
+	if ratio > 0 then
 		if ratio >= 1 then
 			output.r = fader.r / 255
 			output.g = fader.g / 255
 			output.b = fader.b / 255
-		else -- maximum ratio just uses the fader 100%
+		elseif NPTacct.gradientColor then -- maximum ratio just uses the fader 100%
 			output = rgb2hsv(output)
 			output.a = {r=fader.r/255, g=fader.g/255, b=fader.b/255, a=output.a}
 			output.a = rgb2hsv(output.a)
@@ -422,24 +430,24 @@ local function gradient(output, color, fader, ratio)
 			output.v = (output.v + (output.a.v - output.v) * ratio)
 			output.a = output.a.a
 			output = hsv2rgb(output)
---print(GetServerTime() .. " NPT ratio " .. ratio .. " RGB r=" .. output.r .. " g=" .. output.g .. " b=" .. output.b)
 		end -- otherwise convert to HSV and fade then back to RGB
 	end
-	-- no return value since all colors are passed by reference anyway
+	return output
 end
 
 local function updateThreatColor(plate, status, tank, offtank, player, nontank, offheal)
-	local unit, ratio = IsInInstance()
-	if unit and (ratio == "party" or ratio == "raid" or ratio == "scenario") then
-		ratio = true -- indicates a PvE instance
+	local color, fader, unit, ratio = IsInInstance()
+	if color and (fader == "party" or fader == "raid" or fader == "scenario") then
+		fader = true -- indicates a PvE instance
 	else
-		ratio = false -- PvP or non-instance zone
+		fader = false -- PvP or non-instance zone
 	end
 	unit = plate.UnitFrame.unit
+	ratio = 0
 
 	if NPTacct.addonsEnabled -- only color nameplates you can attack if addon is active
 		and UnitCanAttack("player", unit)
-		and (NPTacct.enableOutside or ratio) -- and outside or players only if enabled
+		and (NPTacct.enableOutside or fader) -- and outside or players only if enabled
 		and (NPTacct.enablePlayers or not UnitIsPlayer(unit)) then
 
 		--[[Custom threat situation nameplate coloring:
@@ -456,15 +464,13 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 
 		if not status then
 			status, tank, offtank, player, nontank, offheal = threatSituation(unit)
-		else
-			unit = nil -- indicates we fetched threat values from provided inputs
 		end
 		-- compare highest group threat with tank for color gradient if enabled
-		if NPTacct.gradientColor and status > -1 then
-			if status == 6 or status == 7 then
+		if status > -1 then
+			if NPTacct.youTankCombat and (status == 6 or status == 7) then
 				ratio = math.max(offtank, player, nontank)
 			elseif NPT.playerRole == "TANK" then
-				if status == 0 or status == 1 then
+				if status == 0 or status == 1 or status == 6 or status == 7 then
 					ratio = math.max(offtank, player)
 				else -- damage roles are tanking the monster
 					ratio = math.max(nontank, offheal)
@@ -473,42 +479,61 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 				if status == 2 or status == 3 then
 					ratio = math.max(offtank, nontank)
 				else -- you have monster as damage or healer
-					ratio = math.max(player, offheal)
+					ratio = player
 				end -- damage or tank roles have the monster
 			end
-			-- threat ratio when monster changes target from current (melee 110% or 130% ranged)
+			-- threat ratio when monster switch target (melee 110% or 130% ranged to reclaim)
 			if status == 1 or status == 2 or status == 4 or status == 6 then
-				ratio = tank / math.max(ratio * 1.1, 1)
-			else -- monster is tanked by someone via threat (others must exceed 110% to change it)
-				ratio = ratio / math.max(tank * 1.1, 1)
-			end -- monster is tanked by someone via force (they must exceed 110% after to keep it)
+				if tank < ratio then ratio = tank / ratio else ratio = 0 end
+				if NPTacct.youTankCombat then ratio = 1 - ratio end
+			else -- monster is tanked by someone via force
+				if ratio < tank then ratio = ratio / tank else ratio = 0 end
+			end -- monster is tanked by someone via threat
 			
 -- mikfhan: some cases give 0 > ratio > 1 and some of the cases might not be correct de/nom or color below
 			ratio = math.min(math.max(0, ratio), 1)
-		else
-			ratio = 0
+
+			if not NPTacct.gradientColor then
+				if ratio >= 0.5 and ratio < 1 and not NPTacct.youTankCombat
+				and (status == 1 or status == 6 or status == 4 or status == 2)
+				then -- clamp tanking by force to proper color if not fading gradient
+					if NPT.playerRole == "TANK" and (status == 1 or status == 6)
+					or NPT.playerRole ~= "TANK" and status == 2
+					then
+						ratio = 1
+					else -- bad orange above better yellow below
+						ratio = 0.5
+					end
+				else
+					ratio = math.floor(ratio)
+				end
+			end
 		end
-		if not unit then
-			unit = plate.UnitFrame.unit
-		end
-	else
-		ratio = 0
 	end
-	if not status or not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and status < 0 then
+	if not status or not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and status < 0 or not (NPTacct.enableOutside or fader) then
 		resetFrame(plate) -- only recolor when situation was changed with gradient toward sibling color
 -- mikfhan: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the two check lines below:
 --	elseif not NPT.threat[plate.namePlateUnitToken] or NPT.threat[plate.namePlateUnitToken].lastStatus ~= status
 --		or NPT.threat[plate.namePlateUnitToken].lastRatio ~= ratio then
 	elseif NPTacct.addonsEnabled and unit and UnitCanAttack("player", unit) then
-		local color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
+		color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
 		if UnitIsPlayer(unit) then
 			color = NPTacct.pvPlayerColor
 		elseif UnitReaction(unit, "player") > 3 or UnitExists(unit .. "target") then
 			color = NPTacct.neutralsColor
 		end
-		local fader = color
+		fader = color
+		unit = ratio
 
-		if status > -1 then -- color depending on threat or target situation odd/even
+		if not NPT.threat[plate.namePlateUnitToken] then
+			NPT.threat[plate.namePlateUnitToken] = {
+				["color"] = {r=0, g=0, b=0, a=1}
+			}
+			NPT.threat[plate.namePlateUnitToken].lastStatus = -1
+			NPT.threat[plate.namePlateUnitToken].lastRatio = 0
+		end
+
+		if status > -1 and NPTacct.youTankCombat then -- color depending on threat or target situation odd/even
 			if NPT.playerRole == "TANK" then
 				if status == 0 then	-- others tanking by threat	orange to yellow
 					color = 0
@@ -595,21 +620,63 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 				color = NPTacct["nonTank" .. color .. "color"]
 				fader = NPTacct["nonTank" .. fader .. "color"]
 			end
+		elseif status > -1 then
+			if NPT.playerRole == "TANK" then
+				if status == 2 or status == 4		-- you or offtanks by force	yellow to orange
+				or status == 3 or status == 5 then	-- you or offtanks by threat
+					if ratio > 0.5 then
+						color = 4
+						fader = 0
+						ratio = ratio - 0.5
+					else				-- less than half caught up	green or gray
+						if status == 2 or status == 3 then color = 3 else color = 2 end
+						fader = 4
+					end
+					ratio = ratio * 2
+				else					-- others by force/threat	red to orange
+					color = 7
+					fader = 0
+				end
+			else
+				if status == 0 or status == 7 or status == 5		-- by threat	yellow to orange
+				or status == 1 or status == 6 or status == 4 then	-- by force
+					if ratio > 0.5 then
+						color = 4
+						fader = 0
+						ratio = ratio - 0.5
+					else				-- less than half caught up	green or gray
+						if status == 5 or status == 4 then color = 3 else color = 2 end
+						fader = 4
+					end
+					ratio = ratio * 2
+				else					-- you tank by force/threat	red to orange
+					color = 7
+					fader = 0
+				end
+			end
+			color = NPTacct["youTank" .. color .. "color"]
+			fader = NPTacct["youTank" .. fader .. "color"]
 		end
-		if not NPT.threat[plate.namePlateUnitToken] then
-			NPT.threat[plate.namePlateUnitToken] = {
-				["color"] = {r=0, g=0, b=0, a=1}
-			}
-		end
+		NPT.threat[plate.namePlateUnitToken].color = gradient(color, fader, ratio)
+
+--		if unit > 0 and unit ~= NPT.threat[plate.namePlateUnitToken].lastRatio
+--		or status > -1 and status ~= NPT.threat[plate.namePlateUnitToken].lastStatus then
+--			print(GetServerTime() .. " NPT status " .. status
+--			.. " ratio " .. math.floor(unit * 100)
+--			.. " r=" .. math.floor(255 * NPT.threat[plate.namePlateUnitToken].color.r)
+--			.. " g=" .. math.floor(255 * NPT.threat[plate.namePlateUnitToken].color.g)
+--			.. " b=" .. math.floor(255 * NPT.threat[plate.namePlateUnitToken].color.b))
+--		end
+
 		NPT.threat[plate.namePlateUnitToken].lastStatus = status
-		NPT.threat[plate.namePlateUnitToken].lastRatio = ratio
-		gradient(NPT.threat[plate.namePlateUnitToken].color, color, fader, ratio)
+		NPT.threat[plate.namePlateUnitToken].lastRatio = unit
+
 		updatePlateColor(plate, false)
 	end
 	return plate, status, tank, offtank, player, nontank, offheal
 end
 local function callback()
-	if NPTacct.addonsEnabled and (NPTacct.enableOutside or IsInInstance()) then
+	if NPTacct.addonsEnabled then
 		NPT.thisUpdate = false
 		local nameplates, key, plate = {}
 		if InCombatLockdown() then
@@ -636,7 +703,7 @@ end
 --NPT:RegisterEvent("PLAYER_REGEN_DISABLED")
 --NPT:RegisterEvent("PLAYER_ENTER_COMBAT")
 --NPT:RegisterEvent("PLAYER_LEAVE_COMBAT")
---NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
+--NPT:RegisterEvent("UNIT_THREAT_LIST_UPDATE")
 NPT:RegisterEvent("ADDON_LOADED")
 NPT:RegisterEvent("PLAYER_ENTERING_WORLD")
 NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED")
@@ -653,7 +720,7 @@ elseif WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
 end
 NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
-NPT:RegisterEvent("UNIT_THREAT_LIST_UPDATE")
+NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
 NPT:RegisterEvent("UNIT_TARGET")
 NPT:RegisterEvent("PLAYER_REGEN_ENABLED")
 NPT:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
@@ -678,7 +745,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		C_Timer.NewTimer(0.1, callback)
 	elseif event == "PLAYER_SOFT_INTERACT_CHANGED" or event == "PLAYER_SOFT_FRIEND_CHANGED" or
 		event == "PLAYER_SOFT_ENEMY_CHANGED" or event == "NAME_PLATE_UNIT_ADDED" or
-		event == "PLAYER_TARGET_CHANGED" or event == "UNIT_THREAT_LIST_UPDATE" or
+		event == "PLAYER_TARGET_CHANGED" or event == "UNIT_THREAT_SITUATION_UPDATE" or
 		event == "UNIT_TARGET" or event == "PLAYER_REGEN_ENABLED" then
 		if event == "PLAYER_REGEN_ENABLED" then -- keep trying until mobs back at spawn
 			C_Timer.NewTimer(20.0, callback)
@@ -1043,7 +1110,7 @@ function NPTframe:Initialize()
 	self.pvPlayerColor = self:ColorSwatchCreate("pvPlayerColor", "Player is Out of Combat", "", 6, 1, false)
 	self.pvPlayerColor:SetScript("OnClick", NPTframe.ColorSwatchPostClick)
 
-	self.youTankCombat = self:CheckButtonCreate("youTankCombat", "Color Nameplates by Threat", "Enable coloring nameplates by their threat values and which group role is currently tanking, instead of coloring nameplates only by their current target.", 8)
+	self.youTankCombat = self:CheckButtonCreate("youTankCombat", "Color Nameplates by Role", "Enable coloring nameplates as below by group role currently tanking, instead of just reusing colors below from bad to good.", 8)
 	self.youTankCombat:SetScript("OnClick", function(self, button, down, value, enable)
 		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
 		NPTframe.youTank7color:GetScript("OnClick")(NPTframe.youTank7color, nil, nil, nil, NPT.acct.addonsEnabled and NPT.acct.youTankCombat)
