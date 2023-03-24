@@ -234,10 +234,10 @@ local function threatSituation(monster)
 	-- store if an offtank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offTanks) do
 		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
---		if UnitIsUnit(unit, monster .. "target") and not status then
---			status = 3
---			threatValue = 0
---		end
+		if UnitIsUnit(unit, monster .. "target") and UnitIsPlayer(monster) then
+			status = 3
+			threatValue = 0
+		end
 		if status and status > 1 then
 			targetStatus = 5
 			threatStatus = status + 2
@@ -248,10 +248,10 @@ local function threatSituation(monster)
 	end
 	-- store if the player is tanking, or store their threat value if higher than others
 	_, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
---	if UnitIsUnit("player", monster .. "target") and not status then
---		status = 3
---		threatValue = 0
---	end
+	if UnitIsUnit("player", monster .. "target") and UnitIsPlayer(monster) then
+		status = 3
+		threatValue = 0
+	end
 	if status and status > 1 then
 		targetStatus = 3
 		threatStatus = status
@@ -262,10 +262,10 @@ local function threatSituation(monster)
 	-- store if a non-tank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.nonTanks) do
 		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
---		if UnitIsUnit(unit, monster .. "target") and not status then
---			status = 3
---			threatValue = 0
---		end
+		if UnitIsUnit(unit, monster .. "target") and UnitIsPlayer(monster) then
+			status = 3
+			threatValue = 0
+		end
 		if status and status > 1 then
 			targetStatus = 0
 			threatStatus = 3 - status
@@ -277,10 +277,10 @@ local function threatSituation(monster)
 	-- store if an offheal is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offHeals) do
 		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
---		if UnitIsUnit(unit, monster .. "target") and not status then
---			status = 3
---			threatValue = 0
---		end
+		if UnitIsUnit(unit, monster .. "target") and UnitIsPlayer(monster) then
+			status = 3
+			threatValue = 0
+		end
 		if status and status > 1 then
 			targetStatus = 7
 			threatStatus = status + 4
