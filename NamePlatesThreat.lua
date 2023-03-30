@@ -59,6 +59,12 @@ NPT.nonTanks = {}
 NPT.offHeals = {}
 NPT.nonHeals = {}
 NPT.threat = {}
+_, _, _, NPT.C_AddOns = GetBuildInfo()
+if NPT.C_AddOns >= 100100 then
+	NPT.C_AddOns = _G.C_AddOns
+else
+	NPT.C_AddOns = _G
+end
 
 local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking the addon
 NPTframe.lastSwatch = nil
@@ -823,7 +829,6 @@ NPT:SetScript("OnUpdate", function(self, elapsed)
 		end
 	end -- remember "/reload" for any script changes to take effect
 end)
-
 function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
 	if enable ~= nil and not enable then
 		if NPTframe.lastSwatch and NPTframe.lastSwatch == self then
@@ -1022,13 +1027,13 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
 end
 function NPTframe:Initialize()
 	self:cancel() -- simulate options cancel so panel variables are reset
-	self.name = GetAddOnMetadata(NPT.addonIndex, "Title")
+	self.name = NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Title")
 
 	self.bigTitle = self:CreateFontString("bigTitle", "ARTWORK", "GameFontNormalLarge")
 	self.bigTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -24)
 	self.bigTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
 	self.bigTitle:SetJustifyH("LEFT")
-	self.bigTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Title") .. " " .. GetAddOnMetadata(NPT.addonIndex, "Version") .. " by " .. GetAddOnMetadata(NPT.addonIndex, "Author"))
+	self.bigTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Title") .. " " .. NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Version") .. " by " .. NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Author"))
 	self.bigTitle:SetHeight(self.bigTitle:GetStringHeight() * 1)
 
 	self.subTitle = self:CreateFontString("subTitle", "ARTWORK", "GameFontHighlightSmall")
@@ -1049,9 +1054,9 @@ function NPTframe:Initialize()
 			end
 			NPTframe.refresh()
 		end)
-		self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, X or Close to keep unsaved AddOn changes in yellow below, or click Defaults to reset AddOn options (right-click Defaults instead to only discard yellow unsaved changes).")
+		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, X or Close to keep unsaved AddOn changes in yellow below, or click Defaults to reset AddOn options (right-click Defaults instead to only discard yellow unsaved changes).")
 	else
-		self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
+		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
 	end
 	self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
