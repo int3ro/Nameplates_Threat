@@ -204,7 +204,7 @@ local function getGroupRoles()
 		elseif unitPrefix == "party" then
 -- mikfhan: Wrath Classic has no unit spec but talent panel has a party role up top
 			collectedPlayer = UnitGroupRolesAssigned("player")
-			if UnitIsGroupLeader("player") and collectedPlayer ~= "HEALER" then
+			if UnitIsGroupLeader("player") and collectedPlayer == "NONE" then
 -- mikfhan: Classic Era using party leader since roles did not even exist back then
 				collectedPlayer = "TANK"
 			end
