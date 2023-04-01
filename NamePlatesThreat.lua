@@ -240,62 +240,54 @@ local function threatSituation(monster)
 	-- store if an offtank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offTanks) do
 		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if UnitIsUnit(unit, monster .. "target") and UnitIsPlayer(monster) then
-			status = 3
-			threatValue = 0
-		end
 		if status and status > 1 then
-			targetStatus = 5
 			threatStatus = status + 2
 			tankValue = threatValue
 		elseif threatValue and threatValue > offTankValue then
 			offTankValue = threatValue
 		end
+		if UnitIsUnit(unit, monster .. "target") then
+			targetStatus = 5
+		end
 	end
 	-- store if the player is tanking, or store their threat value if higher than others
 	_, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
-	if UnitIsUnit("player", monster .. "target") and UnitIsPlayer(monster) then
-		status = 3
-		threatValue = 0
-	end
 	if status and status > 1 then
-		targetStatus = 3
 		threatStatus = status
 		tankValue = threatValue
 	elseif threatValue then
 		playerValue = threatValue
 	end
+	if UnitIsUnit("player", monster .. "target") then
+		targetStatus = 3
+	end
 	-- store if a non-tank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.nonTanks) do
 		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if UnitIsUnit(unit, monster .. "target") and UnitIsPlayer(monster) then
-			status = 3
-			threatValue = 0
-		end
 		if status and status > 1 then
-			targetStatus = 0
 			threatStatus = 3 - status
 			tankValue = threatValue
 		elseif threatValue and threatValue > nonTankValue then
 			nonTankValue = threatValue
 		end
+		if UnitIsUnit(unit, monster .. "target") then
+			targetStatus = 0
+		end
 	end
 	-- store if an offheal is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offHeals) do
 		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if UnitIsUnit(unit, monster .. "target") and UnitIsPlayer(monster) then
-			status = 3
-			threatValue = 0
-		end
 		if status and status > 1 then
-			targetStatus = 7
 			threatStatus = status + 4
 			tankValue = threatValue
 		elseif threatValue and threatValue > offHealValue then
 			offHealValue = threatValue
 		end
+		if UnitIsUnit(unit, monster .. "target") then
+			targetStatus = 7
+		end
 	end
--- mikfhan TODO: pretend any other combat situation means monster is being offtanked by force
+	-- pretend any other combat situation means monster is being offtanked by force
 	if targetStatus < 0 and threatStatus < 0 and UnitAffectingCombat(monster) then
 		if NPT.playerRole == "TANK" then
 			targetStatus = 4
@@ -303,37 +295,7 @@ local function threatSituation(monster)
 			targetStatus = 1
 		end
 	end
---[[	-- default to offtank low threat on a nongroup target if none of the above were a match
-	if NPTacct.showPetThreat and targetStatus < 0 and UnitExists(monster .. "target") then
-		unit = monster .. "target"
-		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPT.playerRole == "TANK" then
-			if status then
-				if isTanking then
-					threatStatus = status + 2
-					tankValue = threatValue
-				elseif threatValue > offTankValue then
-					offTankValue = threatValue
-				end
-			end
-			if not UnitIsFriend(monster, unit) then
-				targetStatus = 5
-			end
-		else
-			if status then
-				if isTanking then
-					threatStatus = 3 - status
-					tankValue = threatValue
-				elseif threatValue > nonTankValue then
-					nonTankValue = threatValue
-				end
-			end
-			if not UnitIsFriend(monster, unit) then
-				targetStatus = 0
-			end
-		end
-	end
---]]	-- clear threat values if tank was found through monster target instead of threat
+	-- clear threat values if tank was found through monster target instead of threat
 	if targetStatus > -1 and (UnitIsPlayer(monster) or threatStatus < 0) then
 		threatStatus = targetStatus
 		tankValue = 0
