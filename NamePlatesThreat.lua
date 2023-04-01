@@ -150,7 +150,7 @@ local function getGroupRoles()
 	local collectedTanks = {}
 	local collectedOther = {}
 	local collectedHeals = {}
-	local collectedPlayer, unitPrefix, unit, i, unitRole, raidRank = "NONE"
+	local collectedPlayer, unitPrefix, unit, i, unitRole = "NONE"
 
 	if IsInRaid() then
 		unitPrefix = "raid"
@@ -164,15 +164,14 @@ local function getGroupRoles()
 			break
 		elseif UnitExists(unit) then
 			unitRole = UnitGroupRolesAssigned(unit)
-			if unitRole ~= "TANK" and unitRole ~= "HEALER" then
-				if UnitIsGroupLeader(unit) then
-					raidRank = 3
-				elseif unitPrefix == "raid" then
-					_, raidRank, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
-				else
-					raidRank = 0
-				end
-				if unitRole == "MAINTANK" or unitRole == "MAINASSIST" or raidRank > 0 then
+			if unitRole == "NONE" then
+				if unitPrefix == "raid" then
+					_, _, _, _, _, _, _, _, _, unit, _, unitRole = GetRaidRosterInfo(i)
+					if unit == "MAINTANK" or unit == "MAINASSIST" then
+						unitRole = "TANK"
+					end
+					unit = unitPrefix .. i
+				elseif UnitIsGroupLeader(unit) then
 					unitRole = "TANK"
 				end
 			end
