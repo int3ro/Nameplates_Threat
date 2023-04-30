@@ -59,6 +59,12 @@ NPT.nonTanks = {}
 NPT.offHeals = {}
 NPT.nonHeals = {}
 NPT.threat = {}
+_, _, _, NPT.C_AddOns = GetBuildInfo()
+if NPT.C_AddOns >= 100100 then
+	NPT.C_AddOns = _G.C_AddOns
+else
+	NPT.C_AddOns = _G
+end
 
 local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking the addon
 NPTframe.lastSwatch = nil
@@ -144,7 +150,7 @@ local function getGroupRoles()
 	local collectedTanks = {}
 	local collectedOther = {}
 	local collectedHeals = {}
-	local collectedPlayer, unitPrefix, unit, i, unitRole, raidRank = "NONE"
+	local collectedPlayer, unitPrefix, unit, i, unitRole = "NONE"
 
 	if IsInRaid() then
 		unitPrefix = "raid"
@@ -158,15 +164,14 @@ local function getGroupRoles()
 			break
 		elseif UnitExists(unit) then
 			unitRole = UnitGroupRolesAssigned(unit)
-			if unitRole ~= "TANK" and unitRole ~= "HEALER" then
-				if UnitIsGroupLeader(unit) then
-					raidRank = 3
-				elseif unitPrefix == "raid" then
-					_, raidRank, _, _, _, _, _, _, _, unitRole = GetRaidRosterInfo(i)
-				else
-					raidRank = 0
-				end
-				if unitRole == "MAINTANK" or unitRole == "MAINASSIST" or raidRank > 0 then
+			if unitRole == "NONE" then
+				if unitPrefix == "raid" then
+					_, _, _, _, _, _, _, _, _, unit, _, unitRole = GetRaidRosterInfo(i)
+					if unit == "MAINTANK" or unit == "MAINASSIST" then
+						unitRole = "TANK"
+					end
+					unit = unitPrefix .. i
+				elseif UnitIsGroupLeader(unit) then
 					unitRole = "TANK"
 				end
 			end
@@ -199,7 +204,7 @@ local function getGroupRoles()
 		elseif unitPrefix == "party" then
 -- mikfhan: Wrath Classic has no unit spec but talent panel has a party role up top
 			collectedPlayer = UnitGroupRolesAssigned("player")
-			if UnitIsGroupLeader("player") and collectedPlayer ~= "HEALER" then
+			if UnitIsGroupLeader("player") and collectedPlayer == "NONE" then
 -- mikfhan: Classic Era using party leader since roles did not even exist back then
 				collectedPlayer = "TANK"
 			end
@@ -234,62 +239,54 @@ local function threatSituation(monster)
 	-- store if an offtank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offTanks) do
 		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if UnitIsUnit(unit, monster .. "target") then
-			if not status then
-				status = 3
-				threatValue = 0
-			end
-			targetStatus = 5
+		if status and status > 1 then
 			threatStatus = status + 2
 			tankValue = threatValue
 		elseif threatValue and threatValue > offTankValue then
 			offTankValue = threatValue
 		end
+		if UnitIsUnit(unit, monster .. "target") then
+			targetStatus = 5
+		end
 	end
 	-- store if the player is tanking, or store their threat value if higher than others
 	_, status, _, _, threatValue = UnitDetailedThreatSituation("player", monster)
-	if UnitIsUnit("player", monster .. "target") then
-		if not status then
-			status = 3
-			threatValue = 0
-		end
-		targetStatus = 3
+	if status and status > 1 then
 		threatStatus = status
 		tankValue = threatValue
 	elseif threatValue then
 		playerValue = threatValue
 	end
+	if UnitIsUnit("player", monster .. "target") then
+		targetStatus = 3
+	end
 	-- store if a non-tank is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.nonTanks) do
 		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if UnitIsUnit(unit, monster .. "target") then
-			if not status then
-				status = 3
-				threatValue = 0
-			end
-			targetStatus = 0
+		if status and status > 1 then
 			threatStatus = 3 - status
 			tankValue = threatValue
 		elseif threatValue and threatValue > nonTankValue then
 			nonTankValue = threatValue
 		end
+		if UnitIsUnit(unit, monster .. "target") then
+			targetStatus = 0
+		end
 	end
 	-- store if an offheal is tanking, or store their threat value if higher than others
 	for _, unit in ipairs(NPT.offHeals) do
 		_, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if UnitIsUnit(unit, monster .. "target") then
-			if not status then
-				status = 3
-				threatValue = 0
-			end
-			targetStatus = 7
+		if status and status > 1 then
 			threatStatus = status + 4
 			tankValue = threatValue
 		elseif threatValue and threatValue > offHealValue then
 			offHealValue = threatValue
 		end
+		if UnitIsUnit(unit, monster .. "target") then
+			targetStatus = 7
+		end
 	end
--- mikfhan TODO: pretend any other combat situation means monster is being offtanked by force
+	-- pretend any other combat situation means monster is being offtanked by force
 	if targetStatus < 0 and threatStatus < 0 and UnitAffectingCombat(monster) then
 		if NPT.playerRole == "TANK" then
 			targetStatus = 4
@@ -297,37 +294,7 @@ local function threatSituation(monster)
 			targetStatus = 1
 		end
 	end
---[[	-- default to offtank low threat on a nongroup target if none of the above were a match
-	if NPTacct.showPetThreat and targetStatus < 0 and UnitExists(monster .. "target") then
-		unit = monster .. "target"
-		isTanking, status, _, _, threatValue = UnitDetailedThreatSituation(unit, monster)
-		if NPT.playerRole == "TANK" then
-			if status then
-				if isTanking then
-					threatStatus = status + 2
-					tankValue = threatValue
-				elseif threatValue > offTankValue then
-					offTankValue = threatValue
-				end
-			end
-			if not UnitIsFriend(monster, unit) then
-				targetStatus = 5
-			end
-		else
-			if status then
-				if isTanking then
-					threatStatus = 3 - status
-					tankValue = threatValue
-				elseif threatValue > nonTankValue then
-					nonTankValue = threatValue
-				end
-			end
-			if not UnitIsFriend(monster, unit) then
-				targetStatus = 0
-			end
-		end
-	end
---]]	-- clear threat values if tank was found through monster target instead of threat
+	-- clear threat values if tank was found through monster target instead of threat
 	if targetStatus > -1 and (UnitIsPlayer(monster) or threatStatus < 0) then
 		threatStatus = targetStatus
 		tankValue = 0
@@ -823,7 +790,6 @@ NPT:SetScript("OnUpdate", function(self, elapsed)
 		end
 	end -- remember "/reload" for any script changes to take effect
 end)
-
 function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
 	if enable ~= nil and not enable then
 		if NPTframe.lastSwatch and NPTframe.lastSwatch == self then
@@ -1022,13 +988,13 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
 end
 function NPTframe:Initialize()
 	self:cancel() -- simulate options cancel so panel variables are reset
-	self.name = GetAddOnMetadata(NPT.addonIndex, "Title")
+	self.name = NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Title")
 
 	self.bigTitle = self:CreateFontString("bigTitle", "ARTWORK", "GameFontNormalLarge")
 	self.bigTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -24)
 	self.bigTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
 	self.bigTitle:SetJustifyH("LEFT")
-	self.bigTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Title") .. " " .. GetAddOnMetadata(NPT.addonIndex, "Version") .. " by " .. GetAddOnMetadata(NPT.addonIndex, "Author"))
+	self.bigTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Title") .. " " .. NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Version") .. " by " .. NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Author"))
 	self.bigTitle:SetHeight(self.bigTitle:GetStringHeight() * 1)
 
 	self.subTitle = self:CreateFontString("subTitle", "ARTWORK", "GameFontHighlightSmall")
@@ -1049,9 +1015,9 @@ function NPTframe:Initialize()
 			end
 			NPTframe.refresh()
 		end)
-		self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, X or Close to keep unsaved AddOn changes in yellow below, or click Defaults to reset AddOn options (right-click Defaults instead to only discard yellow unsaved changes).")
+		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, X or Close to keep unsaved AddOn changes in yellow below, or click Defaults to reset AddOn options (right-click Defaults instead to only discard yellow unsaved changes).")
 	else
-		self.subTitle:SetText(GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
+		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
 	end
 	self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
