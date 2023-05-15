@@ -60,7 +60,7 @@ NPT.offHeals = {}
 NPT.nonHeals = {}
 NPT.threat = {}
 _, _, _, NPT.C_AddOns = GetBuildInfo()
-if NPT.C_AddOns >= 100100 then
+if NPT.C_AddOns >= 30402 then
 	NPT.C_AddOns = _G.C_AddOns
 else
 	NPT.C_AddOns = _G
@@ -1001,7 +1001,9 @@ function NPTframe:Initialize()
 	self.subTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -50)
 	self.subTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -50)
 	self.subTitle:SetJustifyH("LEFT")
-	if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+
+	_, _, _, self.colBorderOnly = GetBuildInfo()
+	if self.colBorderOnly >= 30402 then
 		self.addonDefault = CreateFrame("Button", "addonDefault", self, "UIPanelButtonTemplate")
 		self.addonDefault:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
 		self.addonDefault:SetText("Defaults")
