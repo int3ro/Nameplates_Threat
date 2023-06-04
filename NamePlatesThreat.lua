@@ -70,15 +70,17 @@ local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking th
 NPTframe.lastSwatch = nil
 
 local function resetFrame(plate)
-	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) then
-		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) and plate.UnitFrame.healthBar then
+		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
 			if UnitIsUnit(plate.UnitFrame.unit, "target") then
 				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1)
 			else
 				plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
 			end
 		end
-		plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a)
+		if plate.UnitFrame.healthBar.r and plate.UnitFrame.healthBar.g and plate.UnitFrame.healthBar.b then
+			plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a or 1)
+		end
 	end
 	if NPT.threat[plate.namePlateUnitToken] ~= nil then
 		NPT.threat[plate.namePlateUnitToken] = nil
@@ -87,11 +89,10 @@ end
 
 local function updatePlateColor(plate, ...)
 	local forceUpdate = ...
-	if NPT.threat[plate.namePlateUnitToken] then
-		local unit = plate.UnitFrame.unit
+	if NPT.threat[plate.namePlateUnitToken] and plate.UnitFrame.healthBar then
+		local currentColor = {}
 		if not forceUpdate then
-			local currentColor = {}
-			if NPTacct.colBorderOnly then
+			if NPTacct.colBorderOnly and plate.UnitFrame.healthBar.border then
 			--	if unit and (UnitIsUnit(unit, "target")
 			--		or UnitIsUnit(unit, "softenemy")
 			--		or UnitIsUnit(unit, "softfriend")
@@ -120,25 +121,26 @@ local function updatePlateColor(plate, ...)
 				forceUpdate = true
 			end
 		end
-		if forceUpdate then
-			if NPTacct.colBorderOnly then
-			--	if unit and (UnitIsUnit(unit, "target")
-			--		or UnitIsUnit(unit, "softenemy")
-			--		or UnitIsUnit(unit, "softfriend")
-			--		or UnitIsUnit(unit, "softinteract")) then
+		currentColor = plate.UnitFrame.unit
+		if forceUpdate and NPT.threat[plate.namePlateUnitToken].color and NPT.threat[plate.namePlateUnitToken].color.r and NPT.threat[plate.namePlateUnitToken].color.g and NPT.threat[plate.namePlateUnitToken].color.b then
+			if NPTacct.colBorderOnly and plate.UnitFrame.healthBar.border then
+			--	if currentColor and (UnitIsUnit(currentColor, "target")
+			--		or UnitIsUnit(currentColor, "softenemy")
+			--		or UnitIsUnit(currentColor, "softfriend")
+			--		or UnitIsUnit(currentColor, "softinteract")) then
 			--		plate.UnitFrame.name:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
 			--	else
-					plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
+					plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a or 1)
 			--	end
 			else
-				if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-					if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or unit and UnitIsTapDenied(unit) then
+				if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
+					if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or currentColor and UnitIsTapDenied(currentColor) then
 						plate.UnitFrame.healthBar.border:SetAlpha(0)
 					else
 						plate.UnitFrame.healthBar.border:SetAlpha(1)
 					end
 				end
-				plate.UnitFrame.healthBar:SetStatusBarColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
+				plate.UnitFrame.healthBar:SetStatusBarColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a or 1)
 			end
 		end
 	else
