@@ -70,6 +70,7 @@ local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking th
 NPTframe.lastSwatch = nil
 
 local function resetFrame(plate)
+	--print(GetServerTime() .. " resetFrame(): Begin")
 	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) and plate.UnitFrame.healthBar then
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
 			if UnitIsUnit(plate.UnitFrame.unit, "target") then
@@ -77,14 +78,19 @@ local function resetFrame(plate)
 			else
 				plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
 			end
+			--print(GetServerTime() .. " resetFrame(): Border")
 		end
-		if plate.UnitFrame.healthBar.r and plate.UnitFrame.healthBar.g and plate.UnitFrame.healthBar.b then
+		if not plate.UnitFrame.healthBar.r or not plate.UnitFrame.healthBar.g or not plate.UnitFrame.healthBar.b then
+			--plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a = plate.UnitFrame.healthBar:GetStatusBarColor()
+		else	--possible taint above directly setting rgba values instead of by the function below
 			plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a or 1)
 		end
+		--print(GetServerTime() .. " resetFrame(): Health")
 	end
 	if NPT.threat[plate.namePlateUnitToken] ~= nil then
 		NPT.threat[plate.namePlateUnitToken] = nil
 	end
+	--print(GetServerTime() .. " resetFrame(): Finish")
 end
 
 local function updatePlateColor(plate, ...)
