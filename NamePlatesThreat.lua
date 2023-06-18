@@ -49,7 +49,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	end
 	return newAcct
 end
-
+local _, T = ...
 local NPT = CreateFrame("Frame", nil, UIParent) -- invisible frame handling addon logic
 NPT.addonIndex = 0
 NPT.playerRole = "DAMAGER"
