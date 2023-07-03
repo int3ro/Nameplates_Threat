@@ -1011,7 +1011,7 @@ function NPTframe:Initialize()
 	self.subTitle:SetJustifyH("LEFT")
 
 	_, _, _, self.colBorderOnly = GetBuildInfo()
-	if self.colBorderOnly >= 30402 then
+	if self.colBorderOnly >= 30402 or WOW_PROJECT_ID == WOW_PROJECT_CLASSIC and self.colBorderOnly >= 11404 then
 		self.addonDefault = CreateFrame("Button", "addonDefault", self, "UIPanelButtonTemplate")
 		self.addonDefault:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
 		self.addonDefault:SetText("Defaults")
