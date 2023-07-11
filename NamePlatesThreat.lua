@@ -49,7 +49,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	end
 	return newAcct
 end
-
+local _, T = ...
 local NPT = CreateFrame("Frame", nil, UIParent) -- invisible frame handling addon logic
 NPT.addonIndex = 0
 NPT.playerRole = "DAMAGER"
@@ -60,7 +60,7 @@ NPT.offHeals = {}
 NPT.nonHeals = {}
 NPT.threat = {}
 _, _, _, NPT.C_AddOns = GetBuildInfo()
-if NPT.C_AddOns >= 100100 then
+if NPT.C_AddOns >= 30402 then
 	NPT.C_AddOns = _G.C_AddOns
 else
 	NPT.C_AddOns = _G
@@ -70,28 +70,35 @@ local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking th
 NPTframe.lastSwatch = nil
 
 local function resetFrame(plate)
-	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) then
-		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+	--print(GetServerTime() .. " resetFrame(): Begin")
+	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) and plate.UnitFrame.healthBar then
+		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
 			if UnitIsUnit(plate.UnitFrame.unit, "target") then
 				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1)
 			else
 				plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
 			end
+			--print(GetServerTime() .. " resetFrame(): Border")
 		end
-		plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a)
+		if not plate.UnitFrame.healthBar.r or not plate.UnitFrame.healthBar.g or not plate.UnitFrame.healthBar.b then
+			--plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a = plate.UnitFrame.healthBar:GetStatusBarColor()
+		else	--possible taint above directly setting rgba values instead of by the function below
+			plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a or 1)
+		end
+		--print(GetServerTime() .. " resetFrame(): Health")
 	end
 	if NPT.threat[plate.namePlateUnitToken] ~= nil then
 		NPT.threat[plate.namePlateUnitToken] = nil
 	end
+	--print(GetServerTime() .. " resetFrame(): Finish")
 end
 
 local function updatePlateColor(plate, ...)
 	local forceUpdate = ...
-	if NPT.threat[plate.namePlateUnitToken] then
-		local unit = plate.UnitFrame.unit
+	if NPT.threat[plate.namePlateUnitToken] and plate.UnitFrame.healthBar then
+		local currentColor = {}
 		if not forceUpdate then
-			local currentColor = {}
-			if NPTacct.colBorderOnly then
+			if NPTacct.colBorderOnly and plate.UnitFrame.healthBar.border then
 			--	if unit and (UnitIsUnit(unit, "target")
 			--		or UnitIsUnit(unit, "softenemy")
 			--		or UnitIsUnit(unit, "softfriend")
@@ -120,25 +127,26 @@ local function updatePlateColor(plate, ...)
 				forceUpdate = true
 			end
 		end
-		if forceUpdate then
-			if NPTacct.colBorderOnly then
-			--	if unit and (UnitIsUnit(unit, "target")
-			--		or UnitIsUnit(unit, "softenemy")
-			--		or UnitIsUnit(unit, "softfriend")
-			--		or UnitIsUnit(unit, "softinteract")) then
+		currentColor = plate.UnitFrame.unit
+		if forceUpdate and NPT.threat[plate.namePlateUnitToken].color and NPT.threat[plate.namePlateUnitToken].color.r and NPT.threat[plate.namePlateUnitToken].color.g and NPT.threat[plate.namePlateUnitToken].color.b then
+			if NPTacct.colBorderOnly and plate.UnitFrame.healthBar.border then
+			--	if currentColor and (UnitIsUnit(currentColor, "target")
+			--		or UnitIsUnit(currentColor, "softenemy")
+			--		or UnitIsUnit(currentColor, "softfriend")
+			--		or UnitIsUnit(currentColor, "softinteract")) then
 			--		plate.UnitFrame.name:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
 			--	else
-					plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
+					plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a or 1)
 			--	end
 			else
-				if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-					if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or unit and UnitIsTapDenied(unit) then
+				if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
+					if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or currentColor and UnitIsTapDenied(currentColor) then
 						plate.UnitFrame.healthBar.border:SetAlpha(0)
 					else
 						plate.UnitFrame.healthBar.border:SetAlpha(1)
 					end
 				end
-				plate.UnitFrame.healthBar:SetStatusBarColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
+				plate.UnitFrame.healthBar:SetStatusBarColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a or 1)
 			end
 		end
 	else
@@ -1001,7 +1009,9 @@ function NPTframe:Initialize()
 	self.subTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -50)
 	self.subTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -50)
 	self.subTitle:SetJustifyH("LEFT")
-	if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+
+	_, _, _, self.colBorderOnly = GetBuildInfo()
+	if self.colBorderOnly >= 30402 or WOW_PROJECT_ID == WOW_PROJECT_CLASSIC and self.colBorderOnly >= 11404 then
 		self.addonDefault = CreateFrame("Button", "addonDefault", self, "UIPanelButtonTemplate")
 		self.addonDefault:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
 		self.addonDefault:SetText("Defaults")
