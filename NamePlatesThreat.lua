@@ -74,50 +74,43 @@ local function resetFrame(plate)
 	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) and plate.UnitFrame.healthBar then
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
 			if UnitIsUnit(plate.UnitFrame.unit, "target") then
-				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1)
+				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1, 1)
 			else
 				plate.UnitFrame.healthBar.border:SetVertexColor(0, 0, 0, 1)
 			end
 			--print(GetServerTime() .. " resetFrame(): Border")
 		end
-		if not plate.UnitFrame.healthBar.r or not plate.UnitFrame.healthBar.g or not plate.UnitFrame.healthBar.b then
+		if not plate.UnitFrame.healthBar.r or not plate.UnitFrame.healthBar.g or not plate.UnitFrame.healthBar.b or not plate.UnitFrame.healthBar.a then
 			--plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a = plate.UnitFrame.healthBar:GetStatusBarColor()
 		else	--possible taint above directly setting rgba values instead of by the function below
-			plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a or 1)
+			plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a)
 		end
 		--print(GetServerTime() .. " resetFrame(): Health")
 	end
 	if NPT.threat[plate.namePlateUnitToken] ~= nil then
 		NPT.threat[plate.namePlateUnitToken] = nil
+		--print(GetServerTime() .. " resetFrame(): Token")
 	end
 	--print(GetServerTime() .. " resetFrame(): Finish")
 end
 
 local function updatePlateColor(plate, ...)
 	local forceUpdate = ...
-	if NPT.threat[plate.namePlateUnitToken] and plate.UnitFrame.healthBar then
-		local currentColor = {}
-		if not forceUpdate then
-			if NPTacct.colBorderOnly and plate.UnitFrame.healthBar.border then
-			--	if unit and (UnitIsUnit(unit, "target")
-			--		or UnitIsUnit(unit, "softenemy")
-			--		or UnitIsUnit(unit, "softfriend")
-			--		or UnitIsUnit(unit, "softinteract")) then
-			--		currentColor.r = plate.UnitFrame.name.r
-			--		currentColor.g = plate.UnitFrame.name.g
-			--		currentColor.b = plate.UnitFrame.name.b
-			--		currentColor.a = plate.UnitFrame.name.a
-			--	else
-					currentColor.r = plate.UnitFrame.healthBar.border.r
-					currentColor.g = plate.UnitFrame.healthBar.border.g
-					currentColor.b = plate.UnitFrame.healthBar.border.b
-					currentColor.a = plate.UnitFrame.healthBar.border.a
-			--	end
+	if NPT.threat[plate.namePlateUnitToken] and NPT.threat[plate.namePlateUnitToken].color then
+		local currentColor = {r=0, g=0, b=0, a=0}
+		if not plate.UnitFrame.healthBar or NPTacct.colBorderOnly and not plate.UnitFrame.healthBar.border then
+			forceUpdate = false
+		elseif not forceUpdate then
+			if NPTacct.colBorderOnly then
+				currentColor.r = plate.UnitFrame.healthBar.border.r or 0
+				currentColor.g = plate.UnitFrame.healthBar.border.g or 0
+				currentColor.b = plate.UnitFrame.healthBar.border.b or 0
+				currentColor.a = plate.UnitFrame.healthBar.border.a or 0
 			else
-				currentColor.r = plate.UnitFrame.healthBar.r
-				currentColor.g = plate.UnitFrame.healthBar.g
-				currentColor.b = plate.UnitFrame.healthBar.b
-				currentColor.a = plate.UnitFrame.healthBar.a
+				currentColor.r = plate.UnitFrame.healthBar.r or 0
+				currentColor.g = plate.UnitFrame.healthBar.g or 0
+				currentColor.b = plate.UnitFrame.healthBar.b or 0
+				currentColor.a = plate.UnitFrame.healthBar.a or 0
 			end
 			if currentColor.a ~= NPT.threat[plate.namePlateUnitToken].color.a
 			or currentColor.r ~= NPT.threat[plate.namePlateUnitToken].color.r
@@ -128,16 +121,9 @@ local function updatePlateColor(plate, ...)
 			end
 		end
 		currentColor = plate.UnitFrame.unit
-		if forceUpdate and NPT.threat[plate.namePlateUnitToken].color and NPT.threat[plate.namePlateUnitToken].color.r and NPT.threat[plate.namePlateUnitToken].color.g and NPT.threat[plate.namePlateUnitToken].color.b then
-			if NPTacct.colBorderOnly and plate.UnitFrame.healthBar.border then
-			--	if currentColor and (UnitIsUnit(currentColor, "target")
-			--		or UnitIsUnit(currentColor, "softenemy")
-			--		or UnitIsUnit(currentColor, "softfriend")
-			--		or UnitIsUnit(currentColor, "softinteract")) then
-			--		plate.UnitFrame.name:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a)
-			--	else
-					plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a or 1)
-			--	end
+		if forceUpdate and NPT.threat[plate.namePlateUnitToken].color.r and NPT.threat[plate.namePlateUnitToken].color.g and NPT.threat[plate.namePlateUnitToken].color.b then
+			if NPTacct.colBorderOnly then
+				plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a or 1)
 			else
 				if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
 					if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or currentColor and UnitIsTapDenied(currentColor) then
@@ -488,8 +474,8 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 	if not status or not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and status < 0 or not (NPTacct.enableOutside or fader) then
 		resetFrame(plate) -- only recolor when situation was changed with gradient toward sibling color
 -- mikfhan: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the two check lines below:
---	elseif not NPT.threat[plate.namePlateUnitToken] or NPT.threat[plate.namePlateUnitToken].lastStatus ~= status
---		or NPT.threat[plate.namePlateUnitToken].lastRatio ~= ratio then
+--	elseif not NPT.threat[plate.namePlateUnitToken] or NPT.threat[plate.namePlateUnitToken].lastStatus ~= status or NPT.threat[plate.namePlateUnitToken].lastRatio ~= ratio then
+--		resetFrame(plate)
 	elseif NPTacct.addonsEnabled and unit and UnitCanAttack("player", unit) then
 		color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
 		if UnitIsPlayer(unit) then
@@ -651,7 +637,7 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 	return plate, status, tank, offtank, player, nontank, offheal
 end
 local function callback()
-	if NPTacct.addonsEnabled then
+	if NPTacct.addonsEnabled and NPT.thisUpdate then
 		NPT.thisUpdate = false
 		local nameplates, key, plate = {}
 		if InCombatLockdown() then
@@ -685,14 +671,15 @@ NPT:RegisterEvent("PLAYER_ROLES_ASSIGNED")
 NPT:RegisterEvent("GROUP_ROSTER_UPDATE")
 NPT:RegisterEvent("PET_DISMISS_START")
 NPT:RegisterEvent("UNIT_PET")
-if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+	NPT:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+elseif WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 	NPT:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_INTERACT_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_FRIEND_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_ENEMY_CHANGED")
-elseif WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
 	NPT:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-end
+end -- this last event for Retail WoW works around combat actions resetting healthbar colors for some reason
 NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
 NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
@@ -724,7 +711,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		event == "UNIT_TARGET" or event == "PLAYER_REGEN_ENABLED" then
 		if event == "PLAYER_REGEN_ENABLED" then -- keep trying until mobs back at spawn
 			C_Timer.NewTimer(20.0, callback)
-		elseif NPTacct.colBorderOnly then -- soft targets need a short delay for border
+		elseif NPTacct.colBorderOnly or WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then -- soft targets need a short delay for border
 			C_Timer.NewTimer(0.1, callback)
 		else -- otherwise we can just do the coloring immediately without delays needed
 			callback()
@@ -734,7 +721,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		if plate and plate.UnitFrame then
 			resetFrame(plate)
 		end
-	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" and GetNumGroupMembers() > 0 then
+	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" and WOW_PROJECT_ID == WOW_PROJECT_CLASSIC and GetNumGroupMembers() > 0 then
 		local timestamp, subevent, _, sourceGUID, _, sourceFlags, _, destGUID = CombatLogGetCurrentEventInfo()
 		local COMBATLOG_FILTER_GROUPHEAL = bit.bor(
 			COMBATLOG_OBJECT_AFFILIATION_MINE
@@ -788,7 +775,9 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 				end
 			end
 		end
-	end
+	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+		C_Timer.NewTimer(0.1, callback)
+	end -- this last event for Retail WoW works around combat actions resetting healthbar colors for some reason
 end)
 NPT:SetScript("OnUpdate", function(self, elapsed)
 	if NPTacct.addonsEnabled and NPTacct.gradientColor and NPT.thisUpdate then
