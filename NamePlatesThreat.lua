@@ -9,7 +9,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
 	newAcct["enablePlayers"] = true  -- also color nameplates for player characters
 	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
-	newAcct["gradientColor"] = true  -- update nameplate color gradients (some CPU usage)
+	newAcct["gradientColor"] = false -- update nameplate color gradients (some CPU usage)
 	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
 	newAcct["youTankCombat"] = false -- unique colors in combat instead of colors above
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
@@ -71,7 +71,7 @@ NPTframe.lastSwatch = nil
 
 local function resetFrame(plate)
 	--print(GetServerTime() .. " resetFrame(): Begin")
-	if plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) and plate.UnitFrame.healthBar then
+	if plate.UnitFrame and plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) and plate.UnitFrame.healthBar then
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
 			if UnitIsUnit(plate.UnitFrame.unit, "target") then
 				plate.UnitFrame.healthBar.border:SetVertexColor(1, 1, 1, 1)
@@ -678,8 +678,7 @@ elseif WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 	NPT:RegisterEvent("PLAYER_SOFT_INTERACT_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_FRIEND_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_ENEMY_CHANGED")
-	NPT:RegisterEvent("UNIT_HEALTH")
-end -- this last event for Retail WoW works around combat actions resetting healthbar colors for some reason
+end
 NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
 NPT:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
@@ -694,6 +693,16 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		until string.upper(GetAddOnInfo(NPT.addonIndex)) == string.upper(arg1)
 		NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
 		NPTframe:Initialize()
+		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+			hooksecurefunc("CompactUnitFrame_UpdateHealthColor", function(frame)
+				local plate = C_NamePlate.GetNamePlateForUnit(frame.unit)
+				if plate and NPTacct.addonsEnabled and frame.unit and UnitCanAttack("player", frame.unit) then updatePlateColor(plate) end
+			end) -- mikfhan: these are needed due to WoW retail healthbars marked dirty from multiple places for next frame reset so we must recolor posthook
+			hooksecurefunc("CompactUnitFrame_UpdateHealthBorder", function(frame)
+				local plate = C_NamePlate.GetNamePlateForUnit(frame.unit)
+				if plate and NPTacct.addonsEnabled and frame.unit and UnitCanAttack("player", frame.unit) then updatePlateColor(plate) end
+			end) -- https://github.com/tomrus88/BlizzardInterfaceCode/blob/24c0341aff3996fe55089e18b41e19bc40552c64/Interface/FrameXML/CompactUnitFrame.lua#L81
+		end
 	elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_ROLES_ASSIGNED" or
 		event == "GROUP_ROSTER_UPDATE" or event == "PET_DISMISS_START" or event == "UNIT_PET" or
 		event == "PLAYER_SPECIALIZATION_CHANGED" then
@@ -775,12 +784,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 				end
 			end
 		end
-	elseif event == "UNIT_HEALTH" then
-		local plate = C_NamePlate.GetNamePlateForUnit(arg1)
-		if plate and plate.UnitFrame then
-			C_Timer.NewTimer(0, callback)
-		end
-	end -- this last event for Retail WoW works around combat actions resetting healthbar colors for some reason
+	end
 end)
 NPT:SetScript("OnUpdate", function(self, elapsed)
 	if NPTacct.addonsEnabled and NPTacct.gradientColor and NPT.thisUpdate then
