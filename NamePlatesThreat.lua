@@ -678,7 +678,7 @@ elseif WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 	NPT:RegisterEvent("PLAYER_SOFT_INTERACT_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_FRIEND_CHANGED")
 	NPT:RegisterEvent("PLAYER_SOFT_ENEMY_CHANGED")
-	NPT:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	NPT:RegisterEvent("UNIT_HEALTH")
 end -- this last event for Retail WoW works around combat actions resetting healthbar colors for some reason
 NPT:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 NPT:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -775,8 +775,11 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 				end
 			end
 		end
-	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-		C_Timer.NewTimer(0.1, callback)
+	elseif event == "UNIT_HEALTH" then
+		local plate = C_NamePlate.GetNamePlateForUnit(arg1)
+		if plate and plate.UnitFrame then
+			C_Timer.NewTimer(0, callback)
+		end
 	end -- this last event for Retail WoW works around combat actions resetting healthbar colors for some reason
 end)
 NPT:SetScript("OnUpdate", function(self, elapsed)
