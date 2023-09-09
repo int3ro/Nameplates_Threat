@@ -1,4 +1,4 @@
-## Interface: 100107
+## Interface: 100200
 ## Title: NamePlatesThreat
 ## Notes: Colors the nameplate healthbar according to threat.
 ## Version: 4.0
