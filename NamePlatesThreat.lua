@@ -7,11 +7,11 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["enableNoFight"] = true  -- also color nameplates not fighting your group
 	newAcct["hostilesColor"] = {r=163, g= 48, b=201} -- violet hostile not in group fight
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
-	newAcct["enablePlayers"] = true  -- also color nameplates for player characters
+	newAcct["enablePlayers"] = true  -- also color nameplates for hostile player characters
 	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
-	newAcct["gradientColor"] = false -- update nameplate color gradients (some CPU usage)
+	newAcct["gradientColor"] = true  -- fade nameplate colors low to high (some CPU usage)
 	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
-	newAcct["youTankCombat"] = false -- unique colors in combat instead of colors above
+	newAcct["youTankCombat"] = false -- color by roles below instead of simple traffic light
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
 	newAcct["youTank0color"] = {r=255, g=153, b=  0} -- orange others tanking by threat
 	newAcct["youTank4color"] = {r=255, g=255, b=120} -- yellow group tanks tank by force
