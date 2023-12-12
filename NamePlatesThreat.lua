@@ -60,7 +60,7 @@ NPT.offHeals = {}
 NPT.nonHeals = {}
 NPT.threat = {}
 _, _, _, NPT.C_AddOns = GetBuildInfo()
-if NPT.C_AddOns >= 30402 then
+if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
 	NPT.C_AddOns = _G.C_AddOns
 else
 	NPT.C_AddOns = _G
@@ -198,7 +198,7 @@ local function getGroupRoles()
 		elseif unitPrefix == "party" then
 -- mikfhan: Wrath Classic has no unit spec but talent panel has a party role up top
 			collectedPlayer = UnitGroupRolesAssigned("player")
-			if UnitIsGroupLeader("player") and collectedPlayer == "NONE" then
+			if UnitIsGroupLeader("player") and (collectedPlayer == "NONE" or WOW_PROJECT_ID == WOW_PROJECT_CLASSIC) then
 -- mikfhan: Classic Era using party leader since roles did not even exist back then
 				collectedPlayer = "TANK"
 			end
@@ -720,10 +720,8 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		event == "UNIT_TARGET" or event == "PLAYER_REGEN_ENABLED" then
 		if event == "PLAYER_REGEN_ENABLED" then -- keep trying until mobs back at spawn
 			C_Timer.NewTimer(20.0, callback)
-		elseif NPTacct.colBorderOnly or WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then -- soft targets need a short delay for border
+		else -- soft targets need a short delay for border
 			C_Timer.NewTimer(0.1, callback)
-		else -- otherwise we can just do the coloring immediately without delays needed
-			callback()
 		end
 	elseif event == "NAME_PLATE_UNIT_REMOVED" then
 		local plate = C_NamePlate.GetNamePlateForUnit(arg1)
@@ -1007,7 +1005,7 @@ function NPTframe:Initialize()
 	self.subTitle:SetJustifyH("LEFT")
 
 	_, _, _, self.colBorderOnly = GetBuildInfo()
-	if self.colBorderOnly >= 30402 or WOW_PROJECT_ID == WOW_PROJECT_CLASSIC and self.colBorderOnly >= 11404 then
+	if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC or self.colBorderOnly >= 11404 then
 		self.addonDefault = CreateFrame("Button", "addonDefault", self, "UIPanelButtonTemplate")
 		self.addonDefault:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
 		self.addonDefault:SetText("Defaults")
