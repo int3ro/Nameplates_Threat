@@ -1004,8 +1004,8 @@ function NPTframe:Initialize()
 	self.subTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -50)
 	self.subTitle:SetJustifyH("LEFT")
 
-	_, _, _, self.colBorderOnly = GetBuildInfo()
-	if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC or self.colBorderOnly >= 11404 then
+--	_, _, _, self.colBorderOnly = GetBuildInfo()
+--	if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC or self.colBorderOnly >= 11404 then
 		self.addonDefault = CreateFrame("Button", "addonDefault", self, "UIPanelButtonTemplate")
 		self.addonDefault:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
 		self.addonDefault:SetText("Defaults")
@@ -1020,9 +1020,9 @@ function NPTframe:Initialize()
 			NPTframe.refresh()
 		end)
 		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, X or Close to keep unsaved AddOn changes in yellow below, or click Defaults to reset AddOn options (right-click Defaults instead to only discard yellow unsaved changes).")
-	else
-		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
-	end
+--	else
+--		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
+--	end
 	self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
 	self.addonsEnabled = self:CheckButtonCreate("addonsEnabled", "Color Non-Friendly Nameplates", "Enable for AddOn to function.", 1)
