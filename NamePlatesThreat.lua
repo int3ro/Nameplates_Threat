@@ -988,6 +988,18 @@ function NPTframe.refresh() -- called on panel shown or after default was accept
 	NPTframe.nonTank4color:GetScript("OnClick")(NPTframe.nonTank4color, nil, nil, NPT.acct.nonTank4color)
 	--print(GetServerTime() .. " NPTframe.refresh(): Finish")
 end
+function NPTframe.OnCommit()
+	--print(GetServerTime() .. " NPTframe.OnCommit(): Begin")
+	NPTframe.okay()
+end
+function NPTframe.OnDefault()
+	--print(GetServerTime() .. " NPTframe.OnDefault(): Begin")
+	NPTframe.default()
+end
+function NPTframe.OnRefresh()
+	--print(GetServerTime() .. " NPTframe.OnRefresh(): Begin")
+	NPTframe.refresh()
+end
 function NPTframe:Initialize()
 	self:cancel() -- simulate options cancel so panel variables are reset
 	self.name = NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Title")
@@ -1165,7 +1177,8 @@ function NPTframe:Initialize()
 	self.nonTank4color = self:ColorSwatchCreate("nonTank4color", "Tanks have Low Threat", "", 12, 3, true)
 	self.nonTank4color:SetScript("OnClick", NPTframe.ColorSwatchPostClick)
 
-	InterfaceOptions_AddCategory(self)
+	--InterfaceOptions_AddCategory(self)
+	Settings.RegisterAddOnCategory(Settings.RegisterCanvasLayoutCategory(self, self.name))
 end
 function NPTframe:ColorSwatchCreate(newName, newText, toolText, mainRow, subRow, columnTwo)
 	local newObject = CreateFrame("CheckButton", newName, self, BackdropTemplateMixin and "InterfaceOptionsCheckButtonTemplate,BackdropTemplate" or "InterfaceOptionsCheckButtonTemplate")
