@@ -80,11 +80,12 @@ local function resetFrame(plate)
 			end
 			--print(GetServerTime() .. " resetFrame(): Border")
 		end
-		if not plate.UnitFrame.healthBar.r or not plate.UnitFrame.healthBar.g or not plate.UnitFrame.healthBar.b or not plate.UnitFrame.healthBar.a then
-			--plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a = plate.UnitFrame.healthBar:GetStatusBarColor()
-		else	--possible taint above directly setting rgba values instead of by the function below
-			plate.UnitFrame.healthBar:SetStatusBarColor(plate.UnitFrame.healthBar.r, plate.UnitFrame.healthBar.g, plate.UnitFrame.healthBar.b, plate.UnitFrame.healthBar.a)
-		end
+		local currentColor = {r=1, g=0, b=0, a=1.0}
+		if UnitReaction(plate.UnitFrame.unit, "player") > 3 then
+			currentColor = {r=1, g=1, b=0, a=1}
+		end	--possible /console taintlog 2 by directly setting rgba values so we can only SetStatusBarColor
+		--currentColor.r, currentColor.g, currentColor.b, currentColor.a = plate.UnitFrame.healthBar:GetStatusBarColor()
+		plate.UnitFrame.healthBar:SetStatusBarColor(currentColor.r, currentColor.g, currentColor.b, currentColor.a)
 		--print(GetServerTime() .. " resetFrame(): Health")
 	end
 	if NPT.threat[plate.namePlateUnitToken] ~= nil then
