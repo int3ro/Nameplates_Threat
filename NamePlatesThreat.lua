@@ -691,7 +691,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and string.upper(arg1) == string.upper("NamePlatesThreat") then
 		repeat
 			NPT.addonIndex = NPT.addonIndex + 1
-		until string.upper(GetAddOnInfo(NPT.addonIndex)) == string.upper(arg1)
+		until string.upper(C_AddOns.GetAddOnInfo(NPT.addonIndex)) == string.upper(arg1)
 		NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
 		NPTframe:Initialize()
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
@@ -1034,7 +1034,7 @@ function NPTframe:Initialize()
 		end)
 		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, X or Close to keep unsaved AddOn changes in yellow below, or click Defaults to reset AddOn options (right-click Defaults instead to only discard yellow unsaved changes).")
 --	else
---		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
+--		self.subTitle:SetText(NPT.C_AddOns.Metadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
 --	end
 	self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
