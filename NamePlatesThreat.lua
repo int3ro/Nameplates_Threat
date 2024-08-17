@@ -59,12 +59,14 @@ NPT.nonTanks = {}
 NPT.offHeals = {}
 NPT.nonHeals = {}
 NPT.threat = {}
-_, _, _, NPT.C_AddOns = GetBuildInfo()
-if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
-	NPT.C_AddOns = _G.C_AddOns
-else
-	NPT.C_AddOns = _G
-end
+
+--mikfhan: below no longer needed?
+--no longer needed? _, _, _, NPT.C_AddOns = GetBuildInfo()
+--if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
+--	NPT.C_AddOns = _G.C_AddOns
+--else
+--	NPT.C_AddOns = _G
+--end
 
 local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking the addon
 NPTframe.lastSwatch = nil
@@ -691,7 +693,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and string.upper(arg1) == string.upper("NamePlatesThreat") then
 		repeat
 			NPT.addonIndex = NPT.addonIndex + 1
-		until string.upper(GetAddOnInfo(NPT.addonIndex)) == string.upper(arg1)
+		until string.upper(_G.C_AddOns.GetAddOnInfo(NPT.addonIndex)) == string.upper(arg1)
 		NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
 		NPTframe:Initialize()
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
@@ -1003,13 +1005,13 @@ function NPTframe.OnRefresh()
 end
 function NPTframe:Initialize()
 	self:cancel() -- simulate options cancel so panel variables are reset
-	self.name = NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Title")
+	self.name = _G.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Title")
 
 	self.bigTitle = self:CreateFontString("bigTitle", "ARTWORK", "GameFontNormalLarge")
 	self.bigTitle:SetPoint("LEFT", self, "TOPLEFT", 16, -24)
 	self.bigTitle:SetPoint("RIGHT", self, "TOPRIGHT", -32, -24)
 	self.bigTitle:SetJustifyH("LEFT")
-	self.bigTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Title") .. " " .. NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Version") .. " by " .. NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Author"))
+	self.bigTitle:SetText(_G.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Version") .. "-release by " .. _G.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Author"))
 	self.bigTitle:SetHeight(self.bigTitle:GetStringHeight() * 1)
 
 	self.subTitle = self:CreateFontString("subTitle", "ARTWORK", "GameFontHighlightSmall")
@@ -1032,9 +1034,9 @@ function NPTframe:Initialize()
 			end
 			NPTframe.refresh()
 		end)
-		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, X or Close to keep unsaved AddOn changes in yellow below, or click Defaults to reset AddOn options (right-click Defaults instead to only discard yellow unsaved changes).")
+		self.subTitle:SetText(_G.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Escape, X or Close to keep unsaved AddOn changes in yellow below, or click Defaults to reset AddOn options (right-click Defaults instead to only discard yellow unsaved changes).")
 --	else
---		self.subTitle:SetText(NPT.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
+--		self.subTitle:SetText(_G.C_AddOns.GetAddOnMetadata(NPT.addonIndex, "Notes") .. " Press Okay to keep unsaved AddOn changes in yellow below, press Escape or Cancel to discard unsaved changes, or click Defaults > These Settings to reset AddOn options.")
 --	end
 	self.subTitle:SetHeight(self.subTitle:GetStringHeight() * 2)
 
