@@ -812,11 +812,11 @@ function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
 	if value ~= nil then
 		self.color:SetVertexColor(value.r / 255, value.g / 255, value.b / 255)
 	end
-	local r, g, b, changed = self.color:GetVertexColor()
+	local red, green, blue, changed = self.color:GetVertexColor()
 	changed = {}
-	changed.r = math.floor(0.5+255*r)
-	changed.g = math.floor(0.5+255*g)
-	changed.b = math.floor(0.5+255*b)
+	changed.r = math.floor(0.5+255*red)
+	changed.g = math.floor(0.5+255*green)
+	changed.b = math.floor(0.5+255*blue)
 	if value ~= nil or self:IsEnabled() and enable == nil then
 		if NPT.acct[self:GetName()] ~= nil then
 			NPT.acct[self:GetName()].r = changed.r
@@ -831,14 +831,19 @@ function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
 			end
 			if self:GetChecked() then
 				NPTframe.lastSwatch = self
-				ColorPickerFrame:Show()
-				ColorPickerFrame.opacityFunc = nil
-				ColorPickerFrame.opacity = nil
-				ColorPickerFrame.hasOpacity = false
-				ColorPickerFrame.func = NPTframe.OnColorSelect
-				ColorPickerFrame.cancelFunc = NPTframe.OnColorSelect
-				ColorPickerFrame.previousValues = changed
-				ColorPickerFrame:SetColorRGB(r, g, b)
+				ColorPickerFrame:SetupColorPickerAndShow(
+				{
+					r = red,
+					g = green,
+					b = blue,
+					opacity = NPTframe.lastSwatch,
+					hasOpacity = false,
+					swatchFunc = NPTframe.OnColorSelect,
+					cancelFunc = NPTframe.OnColorSelect,
+					opacityFunc = nil
+				})
+				--ColorPickerFrame.previousValues = changed
+				--ColorPickerFrame:SetColorRGB(r, g, b)
 			else
 				NPTframe.lastSwatch = nil
 			end
@@ -864,21 +869,16 @@ function NPTframe.ColorSwatchPostClick(self, button, down, value, enable)
 		self.text:SetFontObject("GameFontDisableSmall")
 	end
 end
-function NPTframe.OnColorSelect(self, r, g, b)
-	if self and r and g and b then
-		return -- unsupported for now
-	elseif self then
-		r, g, b = self.r, self.g, self.b
-	else
-		r, g, b = ColorPickerFrame:GetColorRGB()
-		r = math.floor(0.5+255*r)
-		g = math.floor(0.5+255*g)
-		b = math.floor(0.5+255*b)
+function NPTframe.OnColorSelect(previousValues)
+	if not previousValues then
+		previousValues = {}
+		previousValues.r, previousValues.g, previousValues.b = ColorPickerFrame:GetColorRGB()
 	end
-	self = {}
-	self.r, self.g, self.b = r, g, b
-	--print(GetServerTime() .. " NPTframe.OnColorSelect(): " .. tostring(r) .. " " .. tostring(g) .. " " .. tostring(b))
-	NPTframe.lastSwatch:GetScript("OnClick")(NPTframe.lastSwatch, nil, nil, self)
+	previousValues.r = math.floor(0.5+255*previousValues.r)
+	previousValues.g = math.floor(0.5+255*previousValues.g)
+	previousValues.b = math.floor(0.5+255*previousValues.b)
+	--print(GetServerTime() .. " NPTframe.OnColorSelect(): " .. tostring(previousValues.r) .. " " .. tostring(previousValues.g) .. " " .. tostring(previousValues.b))
+	ColorPickerFrame.opacity:GetScript("OnClick")(ColorPickerFrame.opacity, nil, nil, previousValues)
 end
 function NPTframe.CheckButtonPostClick(self, button, down, value, enable)
 	if enable ~= nil and not enable then
