@@ -1184,7 +1184,8 @@ function NPTframe:Initialize()
 	Settings.RegisterAddOnCategory(Settings.RegisterCanvasLayoutCategory(self, self.name))
 end
 function NPTframe:ColorSwatchCreate(newName, newText, toolText, mainRow, subRow, columnTwo)
-	local newObject = CreateFrame("CheckButton", newName, self, BackdropTemplateMixin and "InterfaceOptionsCheckButtonTemplate,BackdropTemplate" or "InterfaceOptionsCheckButtonTemplate")
+	local newObject = CreateFrame("CheckButton", newName, self, BackdropTemplateMixin and "UICheckButtonTemplate,BackdropTemplate" or "UICheckButtonTemplate")
+	newObject:SetSize(26, 26)
 	newObject.text = _G[newObject:GetName() .. "Text"]
 	local rowX, rowY, colX = 10, 22.65, 0
 	if subRow then
@@ -1227,7 +1228,8 @@ function NPTframe:ColorSwatchCreate(newName, newText, toolText, mainRow, subRow,
 	return newObject
 end
 function NPTframe:CheckButtonCreate(newName, newText, toolText, mainRow, subRow, columnTwo)
-	local newObject = CreateFrame("CheckButton", newName, self, "InterfaceOptionsCheckButtonTemplate")
+	local newObject = CreateFrame("CheckButton", newName, self, "UICheckButtonTemplate")
+	newObject:SetSize(26, 26)
 	newObject.text = _G[newObject:GetName() .. "Text"]
 	local rowX, rowY, colX = 10, 22.65, 0
 	if subRow then
@@ -1260,8 +1262,23 @@ function NPTframe:CheckButtonCreate(newName, newText, toolText, mainRow, subRow,
 	return newObject
 end
 function NPTframe:CheckSliderCreate(newCheck, newText, toolText, newSlider, minVal, maxVal, mainRow, columnTwo)
-	local newCheck = CreateFrame("CheckButton", newCheck, self, "InterfaceOptionsCheckButtonTemplate")
-	local newSlider = CreateFrame("Slider", newSlider, self, "OptionsSliderTemplate")
+	local newCheck = CreateFrame("CheckButton", newCheck, self, "UICheckButtonTemplate")
+	local newSlider = CreateFrame("Slider", newSlider, self, "UISliderTemplate")
+-- mikfhan: below is needed since we inherited from UISliderTemplateWithLabels now deprecated
+	newSlider:SetSize(144, 17)
+	newSlider.text = newSlider:CreateFontString(newSlider:GetName() .. "Text", "ARTWORK", "GameFontHighlight")
+	newSlider.text:SetParentKey("Text")
+	newSlider.text:SetPoint("BOTTOM", newSlider, "TOP")
+	newSlider.low = newSlider:CreateFontString(newSlider:GetName() .. "Low", "ARTWORK", "GameFontHighlightSmall")
+	newSlider.low:SetParentKey("Low")
+	newSlider.low:SetText("LOW")
+	newSlider.low:SetPoint("TOPLEFT", newSlider, "BOTTOMLEFT", -4, 3)
+	newSlider.high = newSlider:CreateFontString(newSlider:GetName() .. "High", "ARTWORK", "GameFontHighlightSmall")
+	newSlider.high:SetParentKey("High")
+	newSlider.high:SetText("HIGH")
+	newSlider.high:SetPoint("TOPRIGHT", newSlider, "BOTTOMRIGHT", 4, 3)
+	newCheck:SetSize(26, 26)
+-- mikfhan: and newCheck:SetSize above as well from deprecated OptionsBaseCheckButtonTemplate
 	local rowY, colX = 34*mainRow, 0
 	if columnTwo then
 		colX = 286
