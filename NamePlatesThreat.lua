@@ -9,7 +9,7 @@ local function initVariables(oldAcct) -- only the variables below are used by th
 	newAcct["neutralsColor"] = {r=  0, g=112, b=222} -- blue   neutral not in group fight
 	newAcct["enablePlayers"] = true  -- also color nameplates for hostile player characters
 	newAcct["pvPlayerColor"] = {r=245, g=140, b=186} -- pink   player not in group fight
-	newAcct["gradientColor"] = true  -- fade nameplate colors low to high (some CPU usage)
+	newAcct["gradientColor"] = false -- fade nameplate colors low to high (some CPU usage)
 	newAcct["gradientPrSec"] = 5	 -- update color gradients this many times per second
 	newAcct["youTankCombat"] = false -- color by roles below instead of simple traffic light
 	newAcct["youTank7color"] = {r=255, g=  0, b=  0} -- red    healers tanking by threat
@@ -1068,7 +1068,7 @@ function NPTframe:Initialize()
 	self.enableOutside = self:CheckButtonCreate("enableOutside", "Color Out of Dungeons", "Enable coloring nameplates outside PvE instanced zones.", 1, 3)
 	self.enableOutside:SetScript("OnClick", NPTframe.CheckButtonPostClick)
 
-	self.gradientColor, self.gradientPrSec = self:CheckSliderCreate("gradientColor", "Color Gradient Updates Per Second", "Enable fading of nameplates between high and low colors when coloring them by threat.", "gradientPrSec", 1, 9, 6, true)
+	self.gradientColor, self.gradientPrSec = self:CheckSliderCreate("gradientColor", "Color Gradient Updates Per Second", "Enable fading of nameplates between high and low color as threat percent changes, instead of high colors with no fading.", "gradientPrSec", 1, 9, 6, true)
 	self.gradientColor:SetScript("OnClick", function(self, button, down, value, enable)
 		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
 		NPTframe.gradientPrSec:GetScript("OnValueChanged")(NPTframe.gradientPrSec, nil, nil, nil, NPT.acct.addonsEnabled) --and NPT.acct.gradientColor)
@@ -1076,7 +1076,7 @@ function NPTframe:Initialize()
 	end)
 	self.gradientPrSec:SetScript("OnValueChanged", NPTframe.SliderOnValueChanged)
 
-	self.enableNoFight = self:CheckButtonCreate("enableNoFight", "Color Out of Combat", "Enable coloring nameplates when group is not in combat.", 4, nil, false)
+	self.enableNoFight = self:CheckButtonCreate("enableNoFight", "Color Out of Combat", "Enable coloring nameplates also when group and nearby NPC are not in combat, instead of only if there is anyone fighting nearby.", 4, nil, false)
 	self.enableNoFight:SetScript("OnClick", function(self, button, down, value, enable)
 		NPTframe.CheckButtonPostClick(self, button, down, value, enable)
 		NPTframe.hostilesColor:GetScript("OnClick")(NPTframe.hostilesColor, nil, nil, nil, NPT.acct.addonsEnabled) --and NPT.acct.enableNoFight)
