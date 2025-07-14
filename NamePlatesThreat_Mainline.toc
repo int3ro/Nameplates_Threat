@@ -1,7 +1,8 @@
-## Interface: 110200
+## Interface: 110107
 ## Title: NamePlatesThreat
 ## Notes: Colors the nameplate healthbar according to threat.
 ## Version: 4.7
 ## Author: int3ro, exochron, emilekberg & mikfhan
 ## SavedVariables: NPTacct
+## IconTexture: Interface\Icons\ability_hunter_markedfordeath
 NamePlatesThreat.lua
