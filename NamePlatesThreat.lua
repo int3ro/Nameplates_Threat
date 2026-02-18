@@ -90,8 +90,8 @@ local function resetFrame(plate)
 		plate.UnitFrame.healthBar:SetStatusBarColor(currentColor.r, currentColor.g, currentColor.b, currentColor.a)
 		--print(GetServerTime() .. " resetFrame(): Health")
 	end
-	if NPT.threat[plate.namePlateUnitToken] ~= nil then
-		NPT.threat[plate.namePlateUnitToken] = nil
+	if NPT.threat[plate.unitToken] ~= nil then
+		NPT.threat[plate.unitToken] = nil
 		--print(GetServerTime() .. " resetFrame(): Token")
 	end
 	--print(GetServerTime() .. " resetFrame(): Finish")
@@ -99,7 +99,7 @@ end
 
 local function updatePlateColor(plate, ...)
 	local forceUpdate = ...
-	if NPT.threat[plate.namePlateUnitToken] and NPT.threat[plate.namePlateUnitToken].color then
+	if NPT.threat[plate.unitToken] and NPT.threat[plate.unitToken].color then
 		local currentColor = {r=0, g=0, b=0, a=0}
 		if not plate.UnitFrame.healthBar or NPTacct.colBorderOnly and not plate.UnitFrame.healthBar.border then
 			forceUpdate = false
@@ -115,18 +115,18 @@ local function updatePlateColor(plate, ...)
 				currentColor.b = plate.UnitFrame.healthBar.b or 0
 				currentColor.a = plate.UnitFrame.healthBar.a or 0
 			end
-			if currentColor.a ~= NPT.threat[plate.namePlateUnitToken].color.a
-			or currentColor.r ~= NPT.threat[plate.namePlateUnitToken].color.r
-			or currentColor.g ~= NPT.threat[plate.namePlateUnitToken].color.g
-			or currentColor.b ~= NPT.threat[plate.namePlateUnitToken].color.b
+			if currentColor.a ~= NPT.threat[plate.unitToken].color.a
+			or currentColor.r ~= NPT.threat[plate.unitToken].color.r
+			or currentColor.g ~= NPT.threat[plate.unitToken].color.g
+			or currentColor.b ~= NPT.threat[plate.unitToken].color.b
 			then
 				forceUpdate = true
 			end
 		end
 		currentColor = plate.UnitFrame.unit
-		if forceUpdate and NPT.threat[plate.namePlateUnitToken].color.r and NPT.threat[plate.namePlateUnitToken].color.g and NPT.threat[plate.namePlateUnitToken].color.b then
+		if forceUpdate and NPT.threat[plate.unitToken].color.r and NPT.threat[plate.unitToken].color.g and NPT.threat[plate.unitToken].color.b then
 			if NPTacct.colBorderOnly then
-				plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a or 1)
+				plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.unitToken].color.r, NPT.threat[plate.unitToken].color.g, NPT.threat[plate.unitToken].color.b, NPT.threat[plate.unitToken].color.a or 1)
 			else
 				if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
 					if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or currentColor and UnitIsTapDenied(currentColor) then
@@ -135,7 +135,7 @@ local function updatePlateColor(plate, ...)
 						plate.UnitFrame.healthBar.border:SetAlpha(1)
 					end
 				end
-				plate.UnitFrame.healthBar:SetStatusBarColor(NPT.threat[plate.namePlateUnitToken].color.r, NPT.threat[plate.namePlateUnitToken].color.g, NPT.threat[plate.namePlateUnitToken].color.b, NPT.threat[plate.namePlateUnitToken].color.a or 1)
+				plate.UnitFrame.healthBar:SetStatusBarColor(NPT.threat[plate.unitToken].color.r, NPT.threat[plate.unitToken].color.g, NPT.threat[plate.unitToken].color.b, NPT.threat[plate.unitToken].color.a or 1)
 			end
 		end
 	else
@@ -477,7 +477,7 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 	if not status or not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and status < 0 or not (NPTacct.enableOutside or fader) then
 		resetFrame(plate) -- only recolor when situation was changed with gradient toward sibling color
 -- mikfhan: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the two check lines below:
---	elseif not NPT.threat[plate.namePlateUnitToken] or NPT.threat[plate.namePlateUnitToken].lastStatus ~= status or NPT.threat[plate.namePlateUnitToken].lastRatio ~= ratio then
+--	elseif not NPT.threat[plate.unitToken] or NPT.threat[plate.unitToken].lastStatus ~= status or NPT.threat[plate.unitToken].lastRatio ~= ratio then
 --		resetFrame(plate)
 	elseif NPTacct.addonsEnabled and unit and UnitCanAttack("player", unit) then
 		color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
@@ -489,12 +489,12 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 		fader = color
 		unit = ratio
 
-		if not NPT.threat[plate.namePlateUnitToken] then
-			NPT.threat[plate.namePlateUnitToken] = {
+		if not NPT.threat[plate.unitToken] then
+			NPT.threat[plate.unitToken] = {
 				["color"] = {r=0, g=0, b=0, a=1}
 			}
-			NPT.threat[plate.namePlateUnitToken].lastStatus = -1
-			NPT.threat[plate.namePlateUnitToken].lastRatio = 0
+			NPT.threat[plate.unitToken].lastStatus = -1
+			NPT.threat[plate.unitToken].lastRatio = 0
 		end
 
 		if status > -1 and NPTacct.youTankCombat then -- color depending on threat or target situation odd/even
@@ -621,19 +621,19 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 			color = NPTacct["youTank" .. color .. "color"]
 			fader = NPTacct["youTank" .. fader .. "color"]
 		end
-		NPT.threat[plate.namePlateUnitToken].color = gradient(color, fader, ratio)
+		NPT.threat[plate.unitToken].color = gradient(color, fader, ratio)
 
---		if unit > 0 and unit ~= NPT.threat[plate.namePlateUnitToken].lastRatio
---		or status > -1 and status ~= NPT.threat[plate.namePlateUnitToken].lastStatus then
+--		if unit > 0 and unit ~= NPT.threat[plate.unitToken].lastRatio
+--		or status > -1 and status ~= NPT.threat[plate.unitToken].lastStatus then
 --			print(GetServerTime() .. " NPT status " .. status
 --			.. " ratio " .. math.floor(unit * 100)
---			.. " r=" .. math.floor(255 * NPT.threat[plate.namePlateUnitToken].color.r)
---			.. " g=" .. math.floor(255 * NPT.threat[plate.namePlateUnitToken].color.g)
---			.. " b=" .. math.floor(255 * NPT.threat[plate.namePlateUnitToken].color.b))
+--			.. " r=" .. math.floor(255 * NPT.threat[plate.unitToken].color.r)
+--			.. " g=" .. math.floor(255 * NPT.threat[plate.unitToken].color.g)
+--			.. " b=" .. math.floor(255 * NPT.threat[plate.unitToken].color.b))
 --		end
 
-		NPT.threat[plate.namePlateUnitToken].lastStatus = status
-		NPT.threat[plate.namePlateUnitToken].lastRatio = unit
+		NPT.threat[plate.unitToken].lastStatus = status
+		NPT.threat[plate.unitToken].lastRatio = unit
 
 		updatePlateColor(plate, false)
 	end
@@ -698,11 +698,11 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		NPTframe:Initialize()
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 			hooksecurefunc("CompactUnitFrame_UpdateHealthColor", function(frame)
-				local plate = C_NamePlate.GetNamePlateForUnit(frame.unit)
+				if string.sub(frame.unit, 1, 5) ~= "arena" then local plate = C_NamePlate.GetNamePlateForUnit(frame.unit) end
 				if plate and NPTacct.addonsEnabled and frame.unit and UnitCanAttack("player", frame.unit) then updatePlateColor(plate) end
 			end) -- mikfhan: these are needed due to WoW retail healthbars marked dirty from multiple places for next frame reset so we must recolor posthook
 			hooksecurefunc("CompactUnitFrame_UpdateHealthBorder", function(frame)
-				local plate = C_NamePlate.GetNamePlateForUnit(frame.unit)
+				if string.sub(frame.unit, 1, 5) ~= "arena" then local plate = C_NamePlate.GetNamePlateForUnit(frame.unit) end
 				if plate and NPTacct.addonsEnabled and frame.unit and UnitCanAttack("player", frame.unit) then updatePlateColor(plate) end
 			end) -- https://github.com/tomrus88/BlizzardInterfaceCode/blob/24c0341aff3996fe55089e18b41e19bc40552c64/Interface/FrameXML/CompactUnitFrame.lua#L81
 		end
@@ -727,10 +727,8 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 			C_Timer.NewTimer(0.1, callback)
 		end
 	elseif event == "NAME_PLATE_UNIT_REMOVED" then
-		local plate = C_NamePlate.GetNamePlateForUnit(arg1)
-		if plate and plate.UnitFrame then
-			resetFrame(plate)
-		end
+		if string.sub(arg1, 1, 5) ~= "arena" then local plate = C_NamePlate.GetNamePlateForUnit(arg1) end
+		if plate and plate.UnitFrame then resetFrame(plate) end
 	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" and WOW_PROJECT_ID == WOW_PROJECT_CLASSIC and GetNumGroupMembers() > 0 then
 		local timestamp, subevent, _, sourceGUID, _, sourceFlags, _, destGUID = CombatLogGetCurrentEventInfo()
 		local COMBATLOG_FILTER_GROUPHEAL = bit.bor(
