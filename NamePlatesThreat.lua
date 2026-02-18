@@ -696,7 +696,7 @@ NPT:SetScript("OnEvent", function(self, event, arg1)
 		until string.upper(_G.C_AddOns.GetAddOnInfo(NPT.addonIndex)) == string.upper(arg1)
 		NPTacct = initVariables(NPTacct) -- import variables or reset to defaults
 		NPTframe:Initialize()
-		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
+		if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
 			hooksecurefunc("CompactUnitFrame_UpdateHealthColor", function(frame)
 				if string.sub(frame.unit, 1, 5) ~= "arena" then local plate = C_NamePlate.GetNamePlateForUnit(frame.unit) end
 				if plate and NPTacct.addonsEnabled and frame.unit and UnitCanAttack("player", frame.unit) then updatePlateColor(plate) end
