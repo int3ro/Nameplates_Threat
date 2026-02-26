@@ -72,6 +72,7 @@ local NPTframe = CreateFrame("Frame", nil, NPT) -- options panel for tweaking th
 NPTframe.lastSwatch = nil
 
 local function resetFrame(plate)
+	if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then local thisToken = plate.unitToken else local thisToken = plate.namePlateUnitToken end
 	--print(GetServerTime() .. " resetFrame(): Begin")
 	if plate.UnitFrame and plate.UnitFrame.unit and UnitCanAttack("player", plate.UnitFrame.unit) and plate.UnitFrame.healthBar then
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
@@ -90,8 +91,8 @@ local function resetFrame(plate)
 		plate.UnitFrame.healthBar:SetStatusBarColor(currentColor.r, currentColor.g, currentColor.b, currentColor.a)
 		--print(GetServerTime() .. " resetFrame(): Health")
 	end
-	if NPT.threat[plate.unitToken] ~= nil then
-		NPT.threat[plate.unitToken] = nil
+	if NPT.threat[thisToken] ~= nil then
+		NPT.threat[thisToken] = nil
 		--print(GetServerTime() .. " resetFrame(): Token")
 	end
 	--print(GetServerTime() .. " resetFrame(): Finish")
@@ -99,7 +100,8 @@ end
 
 local function updatePlateColor(plate, ...)
 	local forceUpdate = ...
-	if NPT.threat[plate.unitToken] and NPT.threat[plate.unitToken].color then
+	if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then local thisToken = plate.unitToken else local thisToken = plate.namePlateUnitToken end
+	if NPT.threat[thisToken] and NPT.threat[thisToken].color then
 		local currentColor = {r=0, g=0, b=0, a=0}
 		if not plate.UnitFrame.healthBar or NPTacct.colBorderOnly and not plate.UnitFrame.healthBar.border then
 			forceUpdate = false
@@ -115,18 +117,18 @@ local function updatePlateColor(plate, ...)
 				currentColor.b = plate.UnitFrame.healthBar.b or 0
 				currentColor.a = plate.UnitFrame.healthBar.a or 0
 			end
-			if currentColor.a ~= NPT.threat[plate.unitToken].color.a
-			or currentColor.r ~= NPT.threat[plate.unitToken].color.r
-			or currentColor.g ~= NPT.threat[plate.unitToken].color.g
-			or currentColor.b ~= NPT.threat[plate.unitToken].color.b
+			if currentColor.a ~= NPT.threat[thisToken].color.a
+			or currentColor.r ~= NPT.threat[thisToken].color.r
+			or currentColor.g ~= NPT.threat[thisToken].color.g
+			or currentColor.b ~= NPT.threat[thisToken].color.b
 			then
 				forceUpdate = true
 			end
 		end
 		currentColor = plate.UnitFrame.unit
-		if forceUpdate and NPT.threat[plate.unitToken].color.r and NPT.threat[plate.unitToken].color.g and NPT.threat[plate.unitToken].color.b then
+		if forceUpdate and NPT.threat[thisToken].color.r and NPT.threat[thisToken].color.g and NPT.threat[thisToken].color.b then
 			if NPTacct.colBorderOnly then
-				plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[plate.unitToken].color.r, NPT.threat[plate.unitToken].color.g, NPT.threat[plate.unitToken].color.b, NPT.threat[plate.unitToken].color.a or 1)
+				plate.UnitFrame.healthBar.border:SetVertexColor(NPT.threat[thisToken].color.r, NPT.threat[thisToken].color.g, NPT.threat[thisToken].color.b, NPT.threat[thisToken].color.a or 1)
 			else
 				if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and plate.UnitFrame.healthBar.border then
 					if CompactUnitFrame_IsTapDenied(plate.UnitFrame) or currentColor and UnitIsTapDenied(currentColor) then
@@ -135,7 +137,7 @@ local function updatePlateColor(plate, ...)
 						plate.UnitFrame.healthBar.border:SetAlpha(1)
 					end
 				end
-				plate.UnitFrame.healthBar:SetStatusBarColor(NPT.threat[plate.unitToken].color.r, NPT.threat[plate.unitToken].color.g, NPT.threat[plate.unitToken].color.b, NPT.threat[plate.unitToken].color.a or 1)
+				plate.UnitFrame.healthBar:SetStatusBarColor(NPT.threat[thisToken].color.r, NPT.threat[thisToken].color.g, NPT.threat[thisToken].color.b, NPT.threat[thisToken].color.a or 1)
 			end
 		end
 	else
@@ -400,6 +402,7 @@ local function gradient(color, fader, ratio)
 end
 
 local function updateThreatColor(plate, status, tank, offtank, player, nontank, offheal)
+	if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then local thisToken = plate.unitToken else local thisToken = plate.namePlateUnitToken end
 	local color, fader, unit, ratio = IsInInstance()
 	if color and (fader == "party" or fader == "raid" or fader == "scenario") then
 		fader = true -- indicates a PvE instance
@@ -477,7 +480,7 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 	if not status or not NPTacct.enableNoFight and NPT.thisUpdate ~= nil and status < 0 or not (NPTacct.enableOutside or fader) then
 		resetFrame(plate) -- only recolor when situation was changed with gradient toward sibling color
 -- mikfhan: for some reason 9.0.1 is sorting nameplates randomly from their unit, breaking the two check lines below:
---	elseif not NPT.threat[plate.unitToken] or NPT.threat[plate.unitToken].lastStatus ~= status or NPT.threat[plate.unitToken].lastRatio ~= ratio then
+--	elseif not NPT.threat[thisToken] or NPT.threat[thisToken].lastStatus ~= status or NPT.threat[thisToken].lastRatio ~= ratio then
 --		resetFrame(plate)
 	elseif NPTacct.addonsEnabled and unit and UnitCanAttack("player", unit) then
 		color = NPTacct.hostilesColor -- color outside group (others for players or neutrals)
@@ -489,12 +492,12 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 		fader = color
 		unit = ratio
 
-		if not NPT.threat[plate.unitToken] then
-			NPT.threat[plate.unitToken] = {
+		if not NPT.threat[thisToken] then
+			NPT.threat[thisToken] = {
 				["color"] = {r=0, g=0, b=0, a=1}
 			}
-			NPT.threat[plate.unitToken].lastStatus = -1
-			NPT.threat[plate.unitToken].lastRatio = 0
+			NPT.threat[thisToken].lastStatus = -1
+			NPT.threat[thisToken].lastRatio = 0
 		end
 
 		if status > -1 and NPTacct.youTankCombat then -- color depending on threat or target situation odd/even
@@ -621,19 +624,19 @@ local function updateThreatColor(plate, status, tank, offtank, player, nontank, 
 			color = NPTacct["youTank" .. color .. "color"]
 			fader = NPTacct["youTank" .. fader .. "color"]
 		end
-		NPT.threat[plate.unitToken].color = gradient(color, fader, ratio)
+		NPT.threat[thisToken].color = gradient(color, fader, ratio)
 
---		if unit > 0 and unit ~= NPT.threat[plate.unitToken].lastRatio
---		or status > -1 and status ~= NPT.threat[plate.unitToken].lastStatus then
+--		if unit > 0 and unit ~= NPT.threat[thisToken].lastRatio
+--		or status > -1 and status ~= NPT.threat[thisToken].lastStatus then
 --			print(GetServerTime() .. " NPT status " .. status
 --			.. " ratio " .. math.floor(unit * 100)
---			.. " r=" .. math.floor(255 * NPT.threat[plate.unitToken].color.r)
---			.. " g=" .. math.floor(255 * NPT.threat[plate.unitToken].color.g)
---			.. " b=" .. math.floor(255 * NPT.threat[plate.unitToken].color.b))
+--			.. " r=" .. math.floor(255 * NPT.threat[thisToken].color.r)
+--			.. " g=" .. math.floor(255 * NPT.threat[thisToken].color.g)
+--			.. " b=" .. math.floor(255 * NPT.threat[thisToken].color.b))
 --		end
 
-		NPT.threat[plate.unitToken].lastStatus = status
-		NPT.threat[plate.unitToken].lastRatio = unit
+		NPT.threat[thisToken].lastStatus = status
+		NPT.threat[thisToken].lastRatio = unit
 
 		updatePlateColor(plate, false)
 	end
